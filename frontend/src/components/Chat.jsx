@@ -77,10 +77,12 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
       text,
       sender: username,
       timestamp: Date.now(),
-      roomCode,
     };
 
-    socket.emit('sendMessage', message);
+    socket.emit('sendMessage', {
+      roomCode,
+      message
+    });
   };
 
   const handleTyping = () => {

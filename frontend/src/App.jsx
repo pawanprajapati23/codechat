@@ -42,7 +42,7 @@ function App() {
   return (
     <div className="app">
       {!isJoined ? (
-        <Join onJoin={handleJoin} />
+        <Join onJoin={handleJoin} darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
       ) : (
         <Chat
           username={userData.username}
