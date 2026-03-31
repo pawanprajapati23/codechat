@@ -25,7 +25,7 @@ const Join = ({ onJoin }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!username.trim()) {
       newErrors.username = 'Please enter your name';
     } else if (username.trim().length < 2) {
@@ -46,7 +46,7 @@ const Join = ({ onJoin }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (validateForm()) {
       onJoin({
         username: username.trim(),
@@ -89,12 +89,11 @@ const Join = ({ onJoin }) => {
                   setUsername(e.target.value);
                   setErrors({ ...errors, username: '' });
                 }}
-                placeholder="e.g., Ashu"
-                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 bg-gray-50 dark:bg-gray-700/50 border-2 ${
-                  errors.username 
-                    ? 'border-red-400 focus:border-red-500' 
+                placeholder="e.g., Pawan"
+                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 bg-gray-50 dark:bg-gray-700/50 border-2 ${errors.username
+                    ? 'border-red-400 focus:border-red-500'
                     : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400'
-                } rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 text-base`}
+                  } rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 text-base`}
                 maxLength={20}
                 autoComplete="off"
               />
@@ -123,11 +122,10 @@ const Join = ({ onJoin }) => {
                   setErrors({ ...errors, roomCode: '' });
                 }}
                 placeholder="ABC123"
-                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 bg-gray-50 dark:bg-gray-700/50 border-2 ${
-                  errors.roomCode 
-                    ? 'border-red-400 focus:border-red-500' 
+                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 bg-gray-50 dark:bg-gray-700/50 border-2 ${errors.roomCode
+                    ? 'border-red-400 focus:border-red-500'
                     : 'border-gray-200 dark:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400'
-                } rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 uppercase font-mono text-base tracking-wider`}
+                  } rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 uppercase font-mono text-base tracking-wider`}
                 maxLength={10}
                 autoComplete="off"
               />
@@ -154,11 +152,10 @@ const Join = ({ onJoin }) => {
               type="button"
               onClick={handleCopyCode}
               disabled={!roomCode}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-medium transition-all text-sm sm:text-base ${
-                roomCode
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-medium transition-all text-sm sm:text-base ${roomCode
                   ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white hover:shadow-lg active:scale-95'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-              }`}
+                }`}
             >
               {copied ? (
                 <>
