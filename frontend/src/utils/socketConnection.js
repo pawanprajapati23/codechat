@@ -1,16 +1,47 @@
 import { io } from 'socket.io-client';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 let socket = null;
 
 export const initializeSocket = () => {
   if (!socket) {
+    console.log('🔌 Connecting to backend:', BACKEND_URL);
+    
     socket = io(BACKEND_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      autoConnect: true,
+      withCredentials: true,
+    });
+
+    // Connection event handlers for debugging
+    socket.on('connect', () => {
+      console.log('✅ Socket connected:', socket.id);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error.message);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('🔌 Socket disconnected:', reason);
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+    });
+
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('🔄 Reconnection attempt:', attemptNumber);
+    });
+
+    socket.on('error', (error) => {
+      console.error('❌ Socket error:', error);
     });
   }
   return socket;

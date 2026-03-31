@@ -20,6 +20,8 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: true
   },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true,
   pingTimeout: 60000,
   pingInterval: 25000
 });
@@ -31,7 +33,9 @@ app.use(helmet({
 app.use(compression());
 app.use(cors({
   origin: process.env.FRONTEND_URL || ['http://localhost:5173', 'http://localhost:3000'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -84,13 +88,16 @@ io.on('connection', (socket) => {
   let currentUser = null;
   let currentRoom = null;
 
-  // Join room
-  socket.on('join-room', ({ roomCode, userName, userId, color }) => {
+  // Join room - supports both 'join' and 'join-room' events
+  const handleJoin = ({ roomCode, userName, userId, username, color }) => {
     try {
+      const finalUsername = userName || username;
+      const finalUserId = userId || socket.id;
+      
       currentUser = {
-        id: userId,
+        id: finalUserId,
         socketId: socket.id,
-        name: userName,
+        name: finalUsername,
         color: color || '#ff1744',
         joinedAt: Date.now()
       };
@@ -106,7 +113,16 @@ io.on('connection', (socket) => {
       // Get room info
       const room = roomManager.getRoom(roomCode);
 
-      // Notify user
+      // Send system message to all users in room
+      io.to(roomCode).emit('systemMessage', {
+        text: `${finalUsername} joined the room`,
+        timestamp: Date.now()
+      });
+
+      // Send user count to all users in room
+      io.to(roomCode).emit('userCount', room.users.length);
+
+      // Notify user (for backward compatibility)
       socket.emit('joined-room', {
         success: true,
         room: {
@@ -116,27 +132,22 @@ io.on('connection', (socket) => {
         }
       });
 
-      // Notify others
-      socket.to(roomCode).emit('user-joined', {
-        user: {
-          id: userId,
-          name: userName,
-          color: color
-        },
-        onlineCount: room.users.length,
-        timestamp: Date.now()
-      });
-
-      console.log(`👤 ${userName} joined room: ${roomCode} (${room.users.length} users)`);
+      console.log(`👤 ${finalUsername} joined room: ${roomCode} (${room.users.length} users)`);
     } catch (error) {
       console.error('Join room error:', error);
       socket.emit('error', { message: 'Failed to join room' });
     }
-  });
+  };
 
-  // Send message
-  socket.on('send-message', ({ roomCode, message }) => {
+  socket.on('join', handleJoin);
+  socket.on('join-room', handleJoin);
+
+  // Send message - supports both 'sendMessage' and 'send-message' events
+  const handleSendMessage = (data) => {
     try {
+      const roomCode = data.roomCode;
+      const message = data.message || data;
+      
       const room = roomManager.getRoom(roomCode);
       if (!room) {
         return socket.emit('error', { message: 'Room not found' });
@@ -144,59 +155,73 @@ io.on('connection', (socket) => {
 
       const messageData = {
         id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        from: message.from,
-        fromName: message.fromName,
+        sender: message.sender || currentUser?.name,
         text: message.text || '',
-        img: message.img,
-        audio: message.audio,
-        color: message.color,
-        timestamp: Date.now()
+        timestamp: message.timestamp || Date.now(),
+        roomCode: roomCode
       };
 
       // Save message
       messageHandler.saveMessage(roomCode, messageData);
 
-      // Broadcast to room
-      io.to(roomCode).emit('new-message', messageData);
+      // Broadcast to ALL users in room (including sender)
+      io.to(roomCode).emit('message', messageData);
 
       console.log(`💬 Message in ${roomCode}: ${message.text?.substring(0, 30) || '[media]'}`);
     } catch (error) {
       console.error('Send message error:', error);
       socket.emit('error', { message: 'Failed to send message' });
     }
-  });
+  };
 
-  // Reaction
-  socket.on('add-reaction', ({ roomCode, messageId, emoji, userId }) => {
+  socket.on('sendMessage', handleSendMessage);
+  socket.on('send-message', handleSendMessage);
+
+  // Reaction - supports both 'reaction' and 'add-reaction' events
+  const handleReaction = (data) => {
     try {
+      const { roomCode, messageId, emoji, userId, sender } = data;
+      
       const reaction = {
         messageId,
         emoji,
-        userId,
+        userId: userId || currentUser?.id,
         timestamp: Date.now()
       };
 
       messageHandler.addReaction(roomCode, messageId, reaction);
 
-      io.to(roomCode).emit('reaction-added', {
+      // Broadcast to all users in room
+      io.to(roomCode).emit('reaction', {
         messageId,
+        sender,
         emoji,
-        userId
+        roomCode
       });
 
       console.log(`👍 Reaction in ${roomCode}: ${emoji}`);
     } catch (error) {
       console.error('Reaction error:', error);
     }
+  };
+
+  socket.on('reaction', handleReaction);
+  socket.on('add-reaction', handleReaction);
+
+  // Typing indicator - supports both formats
+  socket.on('typing', (data) => {
+    const roomCode = data.roomCode;
+    const userName = data.userName || data.username;
+    
+    // Broadcast to others in room (not to sender)
+    socket.to(roomCode).emit('typing', {
+      username: userName || currentUser?.name
+    });
   });
 
-  // Typing indicator
-  socket.on('typing', ({ roomCode, isTyping, userName }) => {
-    socket.to(roomCode).emit('user-typing', {
-      userId: currentUser?.id,
-      userName: userName || currentUser?.name,
-      isTyping
-    });
+  socket.on('stopTyping', (data) => {
+    const roomCode = data.roomCode;
+    // Optional: can add stop typing event handling if needed
   });
 
   // Get room messages
@@ -214,6 +239,35 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Leave room
+  socket.on('leave', (data) => {
+    if (currentUser && currentRoom) {
+      const { roomCode } = data;
+      const room = roomManager.getRoom(roomCode || currentRoom);
+      
+      // Send system message
+      io.to(currentRoom).emit('systemMessage', {
+        text: `${currentUser.name} left the room`,
+        timestamp: Date.now()
+      });
+
+      // Remove user from room
+      roomManager.removeUserFromRoom(currentRoom, currentUser.id);
+      userManager.removeUser(currentUser.id);
+
+      // Update user count
+      const updatedRoom = roomManager.getRoom(currentRoom);
+      if (updatedRoom) {
+        io.to(currentRoom).emit('userCount', updatedRoom.users.length);
+      }
+
+      console.log(`👋 ${currentUser.name} left room: ${currentRoom}`);
+      
+      currentUser = null;
+      currentRoom = null;
+    }
+  });
+
   // Disconnect
   socket.on('disconnect', () => {
     if (currentUser && currentRoom) {
@@ -223,15 +277,18 @@ io.on('connection', (socket) => {
 
       const room = roomManager.getRoom(currentRoom);
 
-      // Notify others
-      socket.to(currentRoom).emit('user-left', {
-        userId: currentUser.id,
-        userName: currentUser.name,
-        onlineCount: room ? room.users.length : 0,
+      // Send system message
+      io.to(currentRoom).emit('systemMessage', {
+        text: `${currentUser.name} left the room`,
         timestamp: Date.now()
       });
 
-      console.log(`👋 ${currentUser.name} left room: ${currentRoom}`);
+      // Update user count
+      if (room) {
+        io.to(currentRoom).emit('userCount', room.users.length);
+      }
+
+      console.log(`👋 ${currentUser.name} disconnected from room: ${currentRoom}`);
     }
     console.log(`❌ User disconnected: ${socket.id}`);
   });
