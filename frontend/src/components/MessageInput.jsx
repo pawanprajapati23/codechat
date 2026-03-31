@@ -52,7 +52,7 @@ const MessageInput = ({ onSendMessage, onTyping }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 shadow-lg sticky bottom-0">
+    <form onSubmit={handleSubmit} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0">
       <div className="flex items-center gap-2 sm:gap-3 max-w-4xl mx-auto relative">
         <div className="flex-1 relative">
           <input

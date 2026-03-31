@@ -150,7 +150,7 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-slate-900">
+    <div className="flex flex-col h-[100dvh] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-slate-900">
       <ConnectionStatus />
       <Header
         roomCode={roomCode}
@@ -161,7 +161,7 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
       />
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 overscroll-contain">
         <div className="max-w-4xl mx-auto space-y-2">
           {isLoading ? (
             <>
