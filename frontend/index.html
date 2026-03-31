@@ -2,14 +2,46 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="CodeChat - Anonymous real-time chat application" />
-    <meta name="theme-color" content="#6366f1" />
-    <title>CodeChat - Real-time Anonymous Chat</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    
+    <!-- Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CodeChat" />
+    
+    <!-- SEO -->
+    <meta name="description" content="Real-time chat application for developers with code highlighting, dark mode, and collaboration features" />
+    <meta name="keywords" content="chat, developer, code, real-time, collaboration" />
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <title>CodeChat - Real-time Developer Chat</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('✅ SW registered:', registration);
+            })
+            .catch((error) => {
+              console.log('❌ SW registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

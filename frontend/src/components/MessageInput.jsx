@@ -24,6 +24,13 @@ const MessageInput = ({ onSendMessage, onTyping }) => {
     if (message.trim()) {
       onSendMessage(message);
       setMessage('');
+      
+      // Keep focus on input (prevent keyboard from hiding on mobile)
+      if (e.target && e.target.querySelector('input')) {
+        setTimeout(() => {
+          e.target.querySelector('input').focus();
+        }, 10);
+      }
     }
   };
 
@@ -56,6 +63,7 @@ const MessageInput = ({ onSendMessage, onTyping }) => {
             placeholder="Type your message..."
             className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-full sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
             autoComplete="off"
+            autoFocus
           />
           
           {/* Emoji Button */}

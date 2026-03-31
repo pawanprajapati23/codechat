@@ -7,6 +7,7 @@ import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import TypingIndicator from './TypingIndicator';
 import ConnectionStatus from './ConnectionStatus';
+import ExportChat from './ExportChat';
 import { MessageSkeleton } from './LoadingSkeleton';
 
 const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
@@ -27,62 +28,76 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
   }, [messages, typingUsers]);
 
   useEffect(() => {
+    let hasJoined = false;
+    let isActive = true;
+
     // Simulate loading for better UX
     const loadingTimer = setTimeout(() => {
-      setIsLoading(false);
+      if (isActive) setIsLoading(false);
     }, 800);
-
-    // Join room
-    socket.emit('join', { username, roomCode });
 
     // Message handler
     const handleMessage = (message) => {
-      setMessages((prev) => [...prev, message]);
-      
-      if (message.sender !== username) {
-        playNotificationSound();
+      if (isActive) {
+        setMessages((prev) => [...prev, message]);
+        
+        if (message.sender !== username) {
+          playNotificationSound();
+        }
       }
     };
 
     // User count handler
     const handleUserCount = (count) => {
-      setUserCount(count);
+      if (isActive) setUserCount(count);
     };
 
     // Typing handler
     const handleTyping = ({ username: typingUser }) => {
-      if (typingUser !== username) {
+      if (isActive && typingUser !== username) {
         setTypingUsers((prev) => new Set(prev).add(typingUser));
         
         setTimeout(() => {
-          setTypingUsers((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(typingUser);
-            return newSet;
-          });
+          if (isActive) {
+            setTypingUsers((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(typingUser);
+              return newSet;
+            });
+          }
         }, 3000);
       }
     };
 
     // System message handler
     const handleSystemMessage = (message) => {
-      setMessages((prev) => [...prev, { ...message, isSystem: true }]);
+      if (isActive) {
+        setMessages((prev) => [...prev, { ...message, isSystem: true }]);
+      }
     };
 
-    // Register event listeners
+    // Register event listeners FIRST
     socket.on('message', handleMessage);
     socket.on('userCount', handleUserCount);
     socket.on('typing', handleTyping);
     socket.on('systemMessage', handleSystemMessage);
 
+    // Join room ONLY ONCE after listeners are set
+    if (!hasJoined) {
+      socket.emit('join', { username, roomCode });
+      hasJoined = true;
+    }
+
     return () => {
+      isActive = false;
       clearTimeout(loadingTimer);
       socket.off('message', handleMessage);
       socket.off('userCount', handleUserCount);
       socket.off('typing', handleTyping);
       socket.off('systemMessage', handleSystemMessage);
     };
-  }, [socket, username, roomCode, setMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSendMessage = (text) => {
     const message = {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Moon, Sun, Users, Copy, Check, LogOut } from 'lucide-react';
 import { copyToClipboard } from '../utils/helpers';
+import ShareRoom from './ShareRoom';
 
 const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode }) => {
   const [copied, setCopied] = useState(false);
@@ -36,6 +37,9 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode }) => {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Share Room */}
+          <ShareRoom roomCode={roomCode} />
+          
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleDarkMode}
