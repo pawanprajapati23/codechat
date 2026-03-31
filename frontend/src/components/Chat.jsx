@@ -32,21 +32,25 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
       setIsLoading(false);
     }, 800);
 
+    // Join room
     socket.emit('join', { username, roomCode });
 
-    socket.on('message', (message) => {
+    // Message handler
+    const handleMessage = (message) => {
       setMessages((prev) => [...prev, message]);
       
       if (message.sender !== username) {
         playNotificationSound();
       }
-    });
+    };
 
-    socket.on('userCount', (count) => {
+    // User count handler
+    const handleUserCount = (count) => {
       setUserCount(count);
-    });
+    };
 
-    socket.on('typing', ({ username: typingUser }) => {
+    // Typing handler
+    const handleTyping = ({ username: typingUser }) => {
       if (typingUser !== username) {
         setTypingUsers((prev) => new Set(prev).add(typingUser));
         
@@ -58,20 +62,27 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
           });
         }, 3000);
       }
-    });
+    };
 
-    socket.on('systemMessage', (message) => {
+    // System message handler
+    const handleSystemMessage = (message) => {
       setMessages((prev) => [...prev, { ...message, isSystem: true }]);
-    });
+    };
+
+    // Register event listeners
+    socket.on('message', handleMessage);
+    socket.on('userCount', handleUserCount);
+    socket.on('typing', handleTyping);
+    socket.on('systemMessage', handleSystemMessage);
 
     return () => {
       clearTimeout(loadingTimer);
-      socket.off('message');
-      socket.off('userCount');
-      socket.off('typing');
-      socket.off('systemMessage');
+      socket.off('message', handleMessage);
+      socket.off('userCount', handleUserCount);
+      socket.off('typing', handleTyping);
+      socket.off('systemMessage', handleSystemMessage);
     };
-  }, [socket, username, roomCode]);
+  }, [socket, username, roomCode, setMessages]);
 
   const handleSendMessage = (text) => {
     const message = {
