@@ -55,7 +55,9 @@ export const copyToClipboard = async (text) => {
     await navigator.clipboard.writeText(text);
     return true;
   } catch (err) {
-    console.error('Failed to copy:', err);
+    if (import.meta.env.DEV) {
+      console.error('Failed to copy:', err);
+    }
     return false;
   }
 };
@@ -79,6 +81,6 @@ export const playNotificationSound = () => {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.3);
   } catch (err) {
-    console.error('Audio not supported:', err);
+    // Audio not supported - silently ignore
   }
 };

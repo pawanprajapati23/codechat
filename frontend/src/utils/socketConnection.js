@@ -6,7 +6,9 @@ let socket = null;
 
 export const initializeSocket = () => {
   if (!socket) {
-    console.log('🔌 Connecting to backend:', BACKEND_URL);
+    if (import.meta.env.DEV) {
+      console.log('🔌 Connecting to backend:', BACKEND_URL);
+    }
     
     socket = io(BACKEND_URL, {
       transports: ['websocket', 'polling'],
@@ -21,7 +23,9 @@ export const initializeSocket = () => {
 
     // Connection event handlers for debugging
     socket.on('connect', () => {
-      console.log('✅ Socket connected:', socket.id);
+      if (import.meta.env.DEV) {
+        console.log('✅ Socket connected:', socket.id);
+      }
     });
 
     socket.on('connect_error', (error) => {
@@ -29,15 +33,21 @@ export const initializeSocket = () => {
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('🔌 Socket disconnected:', reason);
+      if (import.meta.env.DEV) {
+        console.log('🔌 Socket disconnected:', reason);
+      }
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+      if (import.meta.env.DEV) {
+        console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+      }
     });
 
     socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('🔄 Reconnection attempt:', attemptNumber);
+      if (import.meta.env.DEV) {
+        console.log('🔄 Reconnection attempt:', attemptNumber);
+      }
     });
 
     socket.on('error', (error) => {
