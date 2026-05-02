@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Phone, PhoneOff, User, Video, VideoOff, X } from 'lucide-react';
+import { Mic, MicOff, Phone, PhoneOff, SwitchCamera, User, Video, VideoOff, X } from 'lucide-react';
 import { getSocket } from '../utils/socketConnection';
 
 const ICE_SERVERS = {
@@ -14,6 +14,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   const pendingIceCandidatesRef = useRef(new Map());
   const isInCallRef = useRef(false);
   const callTypeRef = useRef('video');
+  const facingModeRef = useRef('user');
   const pendingOffersRef = useRef([]);
   const [isInCall, setIsInCall] = useState(false);
   const [callType, setCallType] = useState('video');
@@ -66,7 +67,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
         noiseSuppression: true,
         autoGainControl: true,
       },
-      video: type === 'video' ? { facingMode: 'user' } : false,
+      video: type === 'video' ? { facingMode: facingModeRef.current } : false,
     });
 
     localStreamRef.current = stream;
@@ -284,6 +285,43 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     setIsCameraOff((value) => !value);
   };
 
+  const switchCamera = async () => {
+    if (callType !== 'video' || !localStreamRef.current) return;
+
+    const nextFacingMode = facingModeRef.current === 'user' ? 'environment' : 'user';
+
+    try {
+      setError('');
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: nextFacingMode },
+      });
+      const [nextVideoTrack] = nextStream.getVideoTracks();
+      if (!nextVideoTrack) return;
+
+      const [currentVideoTrack] = localStreamRef.current.getVideoTracks();
+      if (currentVideoTrack) {
+        localStreamRef.current.removeTrack(currentVideoTrack);
+        currentVideoTrack.stop();
+      }
+      localStreamRef.current.addTrack(nextVideoTrack);
+
+      await Promise.all(Array.from(peersRef.current.values()).map(async (peer) => {
+        const sender = peer.getSenders().find((item) => item.track?.kind === 'video');
+        if (sender) {
+          await sender.replaceTrack(nextVideoTrack);
+        }
+      }));
+
+      facingModeRef.current = nextFacingMode;
+      setIsCameraOff(false);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
+    } catch {
+      setError('Could not switch camera on this device.');
+    }
+  };
+
   const acceptIncomingCall = () => {
     const type = incomingCall?.callType || 'video';
     setIncomingCall(null);
@@ -377,9 +415,14 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
                   {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
                 {callType === 'video' && (
-                  <button onClick={toggleCamera} className={`p-3 rounded-full text-white ${isCameraOff ? 'bg-white/20' : 'bg-[#2a3942] hover:bg-[#324650]'}`} aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}>
-                    {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-                  </button>
+                  <>
+                    <button onClick={switchCamera} className="p-3 rounded-full bg-[#2a3942] text-white hover:bg-[#324650]" aria-label="Switch camera">
+                      <SwitchCamera className="w-5 h-5" />
+                    </button>
+                    <button onClick={toggleCamera} className={`p-3 rounded-full text-white ${isCameraOff ? 'bg-white/20' : 'bg-[#2a3942] hover:bg-[#324650]'}`} aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}>
+                      {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                    </button>
+                  </>
                 )}
                 <button onClick={() => endCall(true)} className="p-3 rounded-full bg-red-600 hover:bg-red-700 text-white" aria-label="End call">
                   <PhoneOff className="w-5 h-5" />
