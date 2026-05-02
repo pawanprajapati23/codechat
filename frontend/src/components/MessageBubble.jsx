@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Download, FileText } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
 
 const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
-  const { text, timestamp, sender, reactions = {} } = message;
+  const { text, timestamp, sender, reactions = {}, attachment } = message;
   const userColor = generateUserColor(sender);
   const initials = getInitials(sender);
   const [showReactions, setShowReactions] = useState(false);
@@ -13,11 +14,20 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
   const hasCodeBlock = codeBlockRegex.test(text);
 
   const renderMessageContent = () => {
+    const attachmentContent = attachment ? (
+      <AttachmentPreview attachment={attachment} isOwn={isOwn} />
+    ) : null;
+
     if (!hasCodeBlock) {
       return (
-        <p className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
-          {text}
-        </p>
+        <>
+          {attachmentContent}
+          {text && (
+            <p className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
+              {text}
+            </p>
+          )}
+        </>
       );
     }
 
@@ -54,23 +64,28 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
       });
     }
 
-    return parts.map((part, index) => {
-      if (part.type === 'code') {
-        return (
-          <CodeBlock
-            key={index}
-            code={part.content}
-            language={part.language}
-            darkMode={darkMode}
-          />
-        );
-      }
-      return (
-        <p key={index} className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
-          {part.content}
-        </p>
-      );
-    });
+    return (
+      <>
+        {attachmentContent}
+        {parts.map((part, index) => {
+          if (part.type === 'code') {
+            return (
+              <CodeBlock
+                key={index}
+                code={part.content}
+                language={part.language}
+                darkMode={darkMode}
+              />
+            );
+          }
+          return (
+            <p key={index} className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
+              {part.content}
+            </p>
+          );
+        })}
+      </>
+    );
   };
 
   const quickReactions = ['👍', '❤️', '😂', '😮', '👏', '🔥'];
@@ -158,6 +173,49 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
         </div>
       </div>
     </div>
+  );
+};
+
+const AttachmentPreview = ({ attachment, isOwn }) => {
+  const sizeInMb = attachment.size ? `${(attachment.size / (1024 * 1024)).toFixed(2)} MB` : '';
+
+  if (attachment.type?.startsWith('image/')) {
+    return (
+      <a
+        href={attachment.dataUrl}
+        download={attachment.name}
+        target="_blank"
+        rel="noreferrer"
+        className="mb-2 block overflow-hidden rounded-xl border border-white/20 bg-black/10"
+      >
+        <img
+          src={attachment.dataUrl}
+          alt={attachment.name}
+          className="max-h-72 w-full object-contain"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={attachment.dataUrl}
+      download={attachment.name}
+      target="_blank"
+      rel="noreferrer"
+      className={`mb-2 flex min-w-0 items-center gap-3 rounded-xl px-3 py-2 ${
+        isOwn ? 'bg-white/15 hover:bg-white/20' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-600'
+      }`}
+    >
+      <FileText className="w-6 h-6 flex-shrink-0" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">{attachment.name}</span>
+        <span className={`block text-xs ${isOwn ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+          PDF {sizeInMb && `- ${sizeInMb}`}
+        </span>
+      </span>
+      <Download className="w-4 h-4 flex-shrink-0" />
+    </a>
   );
 };
 

@@ -1,6 +1,6 @@
 import { Eye } from 'lucide-react';
 
-const ReadReceipts = ({ seenCount, totalUsers }) => {
+const ReadReceipts = ({ seenCount }) => {
   if (seenCount <= 1) return null;
 
   return (

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSocket } from '../utils/socketConnection';
-import { Wifi, WifiOff } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 
 const ConnectionStatus = () => {
   const [isConnected, setIsConnected] = useState(true);

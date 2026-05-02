@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Mic, Square, Send } from 'lucide-react';
+import { Mic, Square } from 'lucide-react';
 
 const VoiceRecorder = ({ onSendVoice }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -39,7 +39,7 @@ const VoiceRecorder = ({ onSendVoice }) => {
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
-    } catch (err) {
+    } catch {
       // Permission denied or not supported
       alert('Microphone access denied or not supported');
     }

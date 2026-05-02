@@ -26,7 +26,7 @@ class ErrorBoundary extends Component {
               Oops! Something went wrong
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Don't worry, just refresh the page and try again.
+              Don&apos;t worry, just refresh the page and try again.
             </p>
             <button
               onClick={() => window.location.reload()}

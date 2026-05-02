@@ -23,7 +23,8 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling'],
   allowEIO3: true,
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  maxHttpBufferSize: 8 * 1024 * 1024
 });
 
 // Middleware
@@ -153,10 +154,28 @@ io.on('connection', (socket) => {
         return socket.emit('error', { message: 'Room not found' });
       }
 
+      const attachment = message.attachment && {
+        name: String(message.attachment.name || 'attachment').slice(0, 120),
+        type: String(message.attachment.type || ''),
+        size: Number(message.attachment.size || 0),
+        dataUrl: String(message.attachment.dataUrl || '')
+      };
+
+      if (attachment) {
+        const isAllowedType = attachment.type.startsWith('image/') || attachment.type === 'application/pdf';
+        const isAllowedSize = attachment.size > 0 && attachment.size <= 4 * 1024 * 1024;
+        const hasDataUrl = attachment.dataUrl.startsWith('data:');
+
+        if (!isAllowedType || !isAllowedSize || !hasDataUrl) {
+          return socket.emit('error', { message: 'Only images and PDFs up to 4 MB can be shared' });
+        }
+      }
+
       const messageData = {
         id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         sender: message.sender || currentUser?.name,
         text: message.text || '',
+        attachment,
         timestamp: message.timestamp || Date.now(),
         roomCode: roomCode
       };
@@ -222,6 +241,67 @@ io.on('connection', (socket) => {
   socket.on('stopTyping', (data) => {
     const roomCode = data.roomCode;
     // Optional: can add stop typing event handling if needed
+  });
+
+  // WebRTC call signaling. Media is peer-to-peer; the server only relays metadata.
+  socket.on('call:join', ({ roomCode, callType }) => {
+    if (!roomCode || !currentUser) return;
+
+    socket.to(roomCode).emit('call:user-joined', {
+      socketId: socket.id,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      callType
+    });
+  });
+
+  socket.on('call:offer', ({ targetSocketId, offer, roomCode, callType }) => {
+    if (!targetSocketId || !offer) return;
+
+    io.to(targetSocketId).emit('call:offer', {
+      fromSocketId: socket.id,
+      fromUserId: currentUser?.id,
+      fromUserName: currentUser?.name,
+      offer,
+      roomCode,
+      callType
+    });
+  });
+
+  socket.on('call:answer', ({ targetSocketId, answer }) => {
+    if (!targetSocketId || !answer) return;
+
+    io.to(targetSocketId).emit('call:answer', {
+      fromSocketId: socket.id,
+      answer
+    });
+  });
+
+  socket.on('call:ice-candidate', ({ targetSocketId, candidate }) => {
+    if (!targetSocketId || !candidate) return;
+
+    io.to(targetSocketId).emit('call:ice-candidate', {
+      fromSocketId: socket.id,
+      candidate
+    });
+  });
+
+  socket.on('call:leave', ({ roomCode }) => {
+    if (!roomCode) return;
+
+    socket.to(roomCode).emit('call:user-left', {
+      socketId: socket.id,
+      userName: currentUser?.name
+    });
+  });
+
+  socket.on('call:end', ({ roomCode }) => {
+    if (!roomCode) return;
+
+    socket.to(roomCode).emit('call:ended', {
+      socketId: socket.id,
+      userName: currentUser?.name
+    });
   });
 
   // Get room messages

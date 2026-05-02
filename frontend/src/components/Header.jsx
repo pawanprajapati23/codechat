@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Moon, Sun, Users, Copy, Check, LogOut } from 'lucide-react';
+import { Moon, Sun, Users, Copy, Check, LogOut, Phone, Video } from 'lucide-react';
 import { copyToClipboard } from '../utils/helpers';
 import ShareRoom from './ShareRoom';
 
-const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode }) => {
+const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStartCall }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -37,6 +37,24 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode }) => {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          <button
+            onClick={() => onStartCall('audio')}
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all active:scale-95"
+            aria-label="Start audio call"
+            title="Start audio call"
+          >
+            <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+          </button>
+
+          <button
+            onClick={() => onStartCall('video')}
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all active:scale-95"
+            aria-label="Start video call"
+            title="Start video call"
+          >
+            <Video className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
+          </button>
+
           {/* Share Room */}
           <ShareRoom roomCode={roomCode} />
           

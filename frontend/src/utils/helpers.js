@@ -80,7 +80,7 @@ export const playNotificationSound = () => {
     
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.3);
-  } catch (err) {
+  } catch {
     // Audio not supported - silently ignore
   }
 };

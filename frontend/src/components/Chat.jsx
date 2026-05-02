@@ -7,14 +7,15 @@ import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import TypingIndicator from './TypingIndicator';
 import ConnectionStatus from './ConnectionStatus';
-import ExportChat from './ExportChat';
 import { MessageSkeleton } from './LoadingSkeleton';
+import VideoCall from './VideoCall';
 
 const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
   const [messages, setMessages] = useLocalStorage(`chat_${roomCode}`, []);
   const [userCount, setUserCount] = useState(1);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [requestedCall, setRequestedCall] = useState(null);
   const messagesEndRef = useRef(null);
   const socket = getSocket();
   const typingTimeoutRef = useRef(null);
@@ -112,6 +113,20 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
     });
   };
 
+  const handleSendAttachment = (attachment, text = '') => {
+    const message = {
+      text,
+      attachment,
+      sender: username,
+      timestamp: Date.now(),
+    };
+
+    socket.emit('sendMessage', {
+      roomCode,
+      message
+    });
+  };
+
   const handleTyping = () => {
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -158,6 +173,14 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
         onLeave={handleLeave}
         darkMode={darkMode}
         toggleDarkMode={toggleDarkMode}
+        onStartCall={setRequestedCall}
+      />
+
+      <VideoCall
+        roomCode={roomCode}
+        username={username}
+        requestedCall={requestedCall}
+        onRequestHandled={() => setRequestedCall(null)}
       />
 
       {/* Messages Container */}
@@ -213,7 +236,11 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
         </div>
       </div>
 
-      <MessageInput onSendMessage={handleSendMessage} onTyping={handleTyping} />
+      <MessageInput
+        onSendMessage={handleSendMessage}
+        onSendAttachment={handleSendAttachment}
+        onTyping={handleTyping}
+      />
     </div>
   );
 };
