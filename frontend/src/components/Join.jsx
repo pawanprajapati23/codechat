@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Hash, Copy, Check, Shuffle, LogIn } from 'lucide-react';
+import { ArrowRight, Check, Copy, KeyRound, MessageCircle, Shuffle, User } from 'lucide-react';
 import { generateRoomCode, copyToClipboard } from '../utils/helpers';
 
 const Join = ({ onJoin }) => {
@@ -56,136 +56,145 @@ const Join = ({ onJoin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex items-center justify-center p-3 sm:p-6">
-      <div className="w-full max-w-md px-2 sm:px-0">
-        {/* Logo & Title */}
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl sm:rounded-3xl mb-3 sm:mb-4 shadow-lg transform hover:scale-105 transition-transform">
-            <Users className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+    <div className="min-h-screen bg-[#efeae2] dark:bg-[#0b141a] text-gray-900 dark:text-gray-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col sm:max-w-xl">
+        <div className="relative flex min-h-[38dvh] flex-col justify-between overflow-hidden bg-[#075e54] px-5 pb-8 pt-7 text-white dark:bg-[#111b21] sm:min-h-[320px] sm:rounded-b-[2rem]">
+          <div className="absolute inset-0 opacity-20" style={{
+            backgroundImage:
+              'radial-gradient(circle at 18% 22%, #ffffff 0 1px, transparent 1px), radial-gradient(circle at 72% 34%, #ffffff 0 1px, transparent 1px), radial-gradient(circle at 42% 72%, #ffffff 0 1px, transparent 1px)',
+            backgroundSize: '36px 36px',
+          }} />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+                <MessageCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">CodeChat</h1>
+                <p className="text-xs font-medium text-white/75">Private room messaging</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">
+              Live
+            </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent mb-2">
-            CodeChat
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            Chat anonymously in real-time
-          </p>
+
+          <div className="relative mt-10">
+            <p className="max-w-xs text-3xl font-bold leading-tight sm:text-4xl">
+              Start a room with your name and PIN.
+            </p>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-white/75">
+              Share one code, chat instantly, jump into calls when everyone is ready.
+            </p>
+          </div>
         </div>
 
-        {/* Join Form */}
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-8 space-y-4 sm:space-y-5 border border-gray-100 dark:border-gray-700">
-          {/* Username Input */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Your Name
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                <Users className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setErrors({ ...errors, username: '' });
-                }}
-                placeholder="e.g., Pawan"
-                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 bg-gray-50 dark:bg-gray-700/50 border-2 ${errors.username
-                    ? 'border-red-400 focus:border-red-500'
-                    : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400'
-                  } rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 text-base`}
-                maxLength={20}
-                autoComplete="off"
-              />
+        <div className="-mt-8 flex-1 px-3 pb-5 sm:px-5">
+          <form onSubmit={handleSubmit} className="relative rounded-[1.75rem] border border-white/70 bg-white p-4 shadow-2xl dark:border-[#26343d] dark:bg-[#202c33] sm:p-6">
+            <div className="mb-5">
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-50">Join chat</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Enter your display name and room PIN.</p>
             </div>
-            {errors.username && (
-              <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
-                <span className="text-xs">⚠️</span> {errors.username}
-              </p>
-            )}
-          </div>
 
-          {/* Room Code Input */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Room Code
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                <Hash className="h-5 w-5 text-gray-400" />
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Display name
+                </label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <User className="h-5 w-5 text-[#128c7e] dark:text-[#25d366]" />
+                  </div>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      setErrors({ ...errors, username: '' });
+                    }}
+                    placeholder="e.g., Pawan"
+                    className={`w-full rounded-2xl border pl-12 pr-4 py-4 bg-[#f0f2f5] dark:bg-[#111b21] ${errors.username
+                      ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-transparent focus:border-[#25d366] focus:ring-[#25d366]/15'
+                    } text-base text-gray-900 placeholder-gray-400 transition-all focus:outline-none focus:ring-4 dark:text-gray-100`}
+                    maxLength={20}
+                    autoComplete="name"
+                    autoCapitalize="words"
+                  />
+                </div>
+                {errors.username && (
+                  <p className="mt-1.5 text-sm text-red-500">
+                    {errors.username}
+                  </p>
+                )}
               </div>
-              <input
-                type="text"
-                value={roomCode}
-                onChange={(e) => {
-                  setRoomCode(e.target.value.toUpperCase());
-                  setErrors({ ...errors, roomCode: '' });
-                }}
-                placeholder="ABC123"
-                className={`w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 bg-gray-50 dark:bg-gray-700/50 border-2 ${errors.roomCode
-                    ? 'border-red-400 focus:border-red-500'
-                    : 'border-gray-200 dark:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400'
-                  } rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 uppercase font-mono text-base tracking-wider`}
-                maxLength={10}
-                autoComplete="off"
-              />
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Room PIN
+                </label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <KeyRound className="h-5 w-5 text-[#128c7e] dark:text-[#25d366]" />
+                  </div>
+                  <input
+                    type="text"
+                    value={roomCode}
+                    onChange={(e) => {
+                      setRoomCode(e.target.value.toUpperCase());
+                      setErrors({ ...errors, roomCode: '' });
+                    }}
+                    placeholder="A7K9Q2"
+                    className={`w-full rounded-2xl border pl-12 pr-24 py-4 bg-[#f0f2f5] dark:bg-[#111b21] ${errors.roomCode
+                      ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-transparent focus:border-[#25d366] focus:ring-[#25d366]/15'
+                    } font-mono text-base tracking-[0.22em] text-gray-900 placeholder-gray-400 transition-all focus:outline-none focus:ring-4 dark:text-gray-100`}
+                    maxLength={10}
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                  />
+                  <div className="absolute inset-y-0 right-2 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handleGenerateCode}
+                      className="rounded-full p-2 text-[#54656f] transition hover:bg-white dark:text-[#aebac1] dark:hover:bg-[#202c33]"
+                      aria-label="Generate room PIN"
+                      title="Generate room PIN"
+                    >
+                      <Shuffle className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyCode}
+                      disabled={!roomCode}
+                      className={`rounded-full p-2 transition ${roomCode ? 'text-[#128c7e] hover:bg-white dark:text-[#25d366] dark:hover:bg-[#202c33]' : 'text-gray-300 dark:text-gray-600'}`}
+                      aria-label={copied ? 'Room PIN copied' : 'Copy room PIN'}
+                      title={copied ? 'Copied' : 'Copy room PIN'}
+                    >
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                {errors.roomCode && (
+                  <p className="mt-1.5 text-sm text-red-500">
+                    {errors.roomCode}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00a884] px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-900/10 transition hover:bg-[#008f72] active:scale-[0.98]"
+              >
+                <span>Continue</span>
+                <ArrowRight className="h-5 w-5" />
+              </button>
             </div>
-            {errors.roomCode && (
-              <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
-                <span className="text-xs">⚠️</span> {errors.roomCode}
-              </p>
-            )}
+          </form>
+
+          <div className="mt-4 rounded-2xl bg-white/60 px-4 py-3 text-center text-xs font-medium text-gray-500 dark:bg-[#111b21]/70 dark:text-gray-400">
+            Share the same PIN with friends to enter one room.
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={handleGenerateCode}
-              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white rounded-xl font-medium transition-all hover:shadow-lg active:scale-95 text-sm sm:text-base"
-            >
-              <Shuffle className="w-4 h-4" />
-              <span>Generate</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCopyCode}
-              disabled={!roomCode}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-medium transition-all text-sm sm:text-base ${roomCode
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white hover:shadow-lg active:scale-95'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                }`}
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Join Button */}
-          <button
-            type="submit"
-            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-xl active:scale-98 text-base sm:text-lg"
-          >
-            <LogIn className="w-5 h-5" />
-            <span>Join Chat Room</span>
-          </button>
-        </form>
-
-        {/* Footer */}
-        <div className="mt-5 sm:mt-6 text-center">
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 px-4">
-            💡 Share the code with friends to chat together
-          </p>
         </div>
       </div>
     </div>
