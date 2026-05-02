@@ -165,7 +165,7 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-slate-900">
+    <div className="flex flex-col h-[100dvh] bg-[#efeae2] dark:bg-[#0b141a]">
       <ConnectionStatus />
       <Header
         roomCode={roomCode}
@@ -184,7 +184,14 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
       />
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 overscroll-contain">
+      <div
+        className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 overscroll-contain"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 20% 15%, rgba(0,0,0,0.035) 0 1px, transparent 1px), radial-gradient(circle at 80% 35%, rgba(0,0,0,0.03) 0 1px, transparent 1px)',
+          backgroundSize: '34px 34px',
+        }}
+      >
         <div className="max-w-4xl mx-auto space-y-2">
           {isLoading ? (
             <>
@@ -209,7 +216,7 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
               if (msg.isSystem) {
                 return (
                   <div key={index} className="flex justify-center py-2">
-                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-gray-200 dark:border-gray-700">
+                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-white/70 dark:bg-[#182229]/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-white/60 dark:border-[#26343d]">
                       {msg.text}
                     </span>
                   </div>

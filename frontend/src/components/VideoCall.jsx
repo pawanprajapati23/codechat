@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, PhoneOff, Video, VideoOff, X } from 'lucide-react';
+import { Mic, MicOff, Phone, PhoneOff, User, Video, VideoOff, X } from 'lucide-react';
 import { getSocket } from '../utils/socketConnection';
 
 const ICE_SERVERS = {
@@ -11,6 +11,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
+  const pendingIceCandidatesRef = useRef(new Map());
   const isInCallRef = useRef(false);
   const callTypeRef = useRef('video');
   const pendingOffersRef = useRef([]);
@@ -43,6 +44,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   const resetCall = useCallback(() => {
     peersRef.current.forEach((peer) => peer.close());
     peersRef.current.clear();
+    pendingIceCandidatesRef.current.clear();
     pendingOffersRef.current = [];
     stopLocalStream();
     isInCallRef.current = false;
@@ -59,8 +61,12 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: type === 'video',
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: type === 'video' ? { facingMode: 'user' } : false,
     });
 
     localStreamRef.current = stream;
@@ -69,6 +75,12 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     }
     return stream;
   }, []);
+
+  useEffect(() => {
+    if (localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+    }
+  }, [isInCall, callType]);
 
   const createPeer = useCallback((targetSocketId) => {
     const existingPeer = peersRef.current.get(targetSocketId);
@@ -105,6 +117,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     peer.onconnectionstatechange = () => {
       if (['closed', 'disconnected', 'failed'].includes(peer.connectionState)) {
         removePeer(targetSocketId);
+        pendingIceCandidatesRef.current.delete(targetSocketId);
       }
     };
 
@@ -133,6 +146,9 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
 
     const peer = createPeer(fromSocketId);
     await peer.setRemoteDescription(new RTCSessionDescription(offer));
+    const queuedCandidates = pendingIceCandidatesRef.current.get(fromSocketId) || [];
+    await Promise.all(queuedCandidates.map((candidate) => peer.addIceCandidate(new RTCIceCandidate(candidate))));
+    pendingIceCandidatesRef.current.delete(fromSocketId);
     const answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
     socket.emit('call:answer', { targetSocketId: fromSocketId, answer });
@@ -213,14 +229,21 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
       const peer = peersRef.current.get(fromSocketId);
       if (peer && peer.signalingState !== 'stable') {
         await peer.setRemoteDescription(new RTCSessionDescription(answer));
+        const queuedCandidates = pendingIceCandidatesRef.current.get(fromSocketId) || [];
+        await Promise.all(queuedCandidates.map((candidate) => peer.addIceCandidate(new RTCIceCandidate(candidate))));
+        pendingIceCandidatesRef.current.delete(fromSocketId);
       }
     };
 
     const handleIceCandidate = async ({ fromSocketId, candidate }) => {
       const peer = peersRef.current.get(fromSocketId);
-      if (peer) {
+      if (peer?.remoteDescription) {
         await peer.addIceCandidate(new RTCIceCandidate(candidate));
+        return;
       }
+
+      const queuedCandidates = pendingIceCandidatesRef.current.get(fromSocketId) || [];
+      pendingIceCandidatesRef.current.set(fromSocketId, [...queuedCandidates, candidate]);
     };
 
     const handleUserLeft = ({ socketId }) => removePeer(socketId);
@@ -279,25 +302,30 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   return (
     <>
       {incomingCall && !isInCall && (
-        <div className="fixed inset-x-3 top-20 sm:top-24 z-[70] mx-auto max-w-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl p-4">
+        <div className="fixed inset-x-3 top-20 sm:top-24 z-[70] mx-auto max-w-sm rounded-2xl border border-emerald-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-2xl p-4">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {incomingCall.userName || 'Someone'} started a {incomingCall.callType} call
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Join the room call when you are ready.
-              </p>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                {incomingCall.callType === 'video' ? <Video className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {incomingCall.userName || 'Someone'} started a {incomingCall.callType} call
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Incoming CodeChat call
+                </p>
+              </div>
             </div>
             <button onClick={rejectIncomingCall} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Dismiss call">
               <X className="w-4 h-4 text-gray-500" />
             </button>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={acceptIncomingCall} className="flex-1 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">
-              Join
+            <button onClick={acceptIncomingCall} className="flex-1 px-3 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">
+              Pick up
             </button>
-            <button onClick={rejectIncomingCall} className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold">
+            <button onClick={rejectIncomingCall} className="px-3 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold">
               Ignore
             </button>
           </div>
@@ -305,41 +333,63 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
       )}
 
       {isInCall && (
-        <div className="fixed bottom-20 sm:bottom-24 right-3 sm:right-6 z-[60] w-[min(92vw,420px)] rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-950 shadow-2xl overflow-hidden">
-          <div className="grid grid-cols-2 gap-1 p-1 min-h-48">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className={`aspect-video w-full rounded-lg bg-gray-900 object-cover ${callType === 'audio' ? 'hidden' : ''}`}
-            />
-            {callType === 'audio' && (
-              <div className="col-span-2 flex min-h-36 items-center justify-center rounded-lg bg-gray-900 text-white text-sm font-semibold">
-                {username}
+        <div className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 z-[60] sm:w-[min(92vw,420px)] sm:rounded-3xl border border-gray-800 bg-[#0b141a] shadow-2xl overflow-hidden">
+          <div className="relative min-h-[100dvh] sm:min-h-[520px] bg-[#111b21]">
+            <div className="absolute inset-0">
+              {callType === 'video' && remoteStreams[0] ? (
+                <RemoteVideo stream={remoteStreams[0].stream} isAudioOnly={false} className="h-full w-full rounded-none" />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center bg-[#111b21] text-white">
+                  <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-200">
+                    <User className="h-12 w-12" />
+                  </div>
+                  <p className="text-lg font-semibold">{remoteStreams.length ? 'Connected' : 'Calling...'}</p>
+                  <p className="mt-1 text-sm text-gray-400">{callType === 'audio' ? 'Audio call' : 'Waiting for video'}</p>
+                </div>
+              )}
+            </div>
+
+            {callType === 'video' && (
+              <div className="absolute right-3 top-4 h-36 w-24 overflow-hidden rounded-2xl border border-white/20 bg-gray-950 shadow-xl sm:h-32 sm:w-24">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className={`h-full w-full object-cover ${isCameraOff ? 'hidden' : ''}`}
+                />
+                {isCameraOff && (
+                  <div className="flex h-full w-full items-center justify-center bg-gray-900 text-gray-300">
+                    <VideoOff className="h-6 w-6" />
+                  </div>
+                )}
               </div>
             )}
-            {remoteStreams.map(({ socketId, stream }) => (
+
+            <div className="absolute left-0 right-0 top-0 bg-gradient-to-b from-black/70 to-transparent px-4 py-5 text-white">
+              <p className="text-sm font-medium">{remoteStreams.length + 1} in {callType} call</p>
+              <p className="text-xs text-gray-300">{username}</p>
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-5 pb-7 pt-20">
+              <div className="mx-auto flex max-w-xs items-center justify-center gap-4 rounded-full bg-[#202c33]/90 px-4 py-3 backdrop-blur">
+                <button onClick={toggleMic} className={`p-3 rounded-full text-white ${isMicMuted ? 'bg-white/20' : 'bg-[#2a3942] hover:bg-[#324650]'}`} aria-label={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}>
+                  {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+                {callType === 'video' && (
+                  <button onClick={toggleCamera} className={`p-3 rounded-full text-white ${isCameraOff ? 'bg-white/20' : 'bg-[#2a3942] hover:bg-[#324650]'}`} aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}>
+                    {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                  </button>
+                )}
+                <button onClick={() => endCall(true)} className="p-3 rounded-full bg-red-600 hover:bg-red-700 text-white" aria-label="End call">
+                  <PhoneOff className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {remoteStreams.slice(callType === 'video' ? 1 : 0).map(({ socketId, stream }) => (
               <RemoteVideo key={socketId} stream={stream} isAudioOnly={callType === 'audio'} />
             ))}
-          </div>
-          <div className="flex items-center justify-between gap-2 bg-gray-900 px-3 py-2">
-            <span className="text-xs font-medium text-gray-300">
-              {remoteStreams.length + 1} in {callType} call
-            </span>
-            <div className="flex items-center gap-2">
-              <button onClick={toggleMic} className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-white" aria-label={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}>
-                {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </button>
-              {callType === 'video' && (
-                <button onClick={toggleCamera} className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-white" aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}>
-                  {isCameraOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-                </button>
-              )}
-              <button onClick={() => endCall(true)} className="p-2 rounded-full bg-red-600 hover:bg-red-700 text-white" aria-label="End call">
-                <PhoneOff className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -358,17 +408,22 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   );
 };
 
-const RemoteVideo = ({ stream, isAudioOnly }) => {
+const RemoteVideo = ({ stream, isAudioOnly, className = 'aspect-video w-full rounded-lg' }) => {
   const videoRef = useRef(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
     }
+    if (audioRef.current) {
+      audioRef.current.srcObject = stream;
+      audioRef.current.play().catch(() => {});
+    }
   }, [stream]);
 
   if (isAudioOnly) {
-    return null;
+    return <audio ref={audioRef} autoPlay />;
   }
 
   return (
@@ -376,7 +431,7 @@ const RemoteVideo = ({ stream, isAudioOnly }) => {
       ref={videoRef}
       autoPlay
       playsInline
-      className="aspect-video w-full rounded-lg bg-gray-900 object-cover"
+      className={`${className} bg-gray-900 object-cover`}
     />
   );
 };

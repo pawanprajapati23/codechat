@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Moon, Sun, Users, Copy, Check, LogOut, Phone, Video } from 'lucide-react';
+import { Check, Copy, LogOut, Moon, Phone, Sun, Users, Video } from 'lucide-react';
 import { copyToClipboard } from '../utils/helpers';
 import ShareRoom from './ShareRoom';
 
@@ -15,11 +15,11 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStar
   };
 
   return (
-    <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm sticky top-0 z-50">
+    <header className="bg-[#075e54] dark:bg-[#111b21] border-b border-[#064e46] dark:border-[#222e35] px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm sticky top-0 z-50">
       <div className="flex items-center justify-between max-w-4xl mx-auto">
         {/* Left: Room Info */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:shadow-lg transition-all active:scale-95"
+          <div className="bg-white/10 text-white rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:bg-white/20 transition-all active:scale-95"
                onClick={handleCopy}>
             <span className="font-bold text-xs sm:text-sm font-mono tracking-wider">{roomCode}</span>
             {copied ? (
@@ -29,9 +29,9 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStar
             )}
           </div>
           
-          <div className="flex items-center gap-1 sm:gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg">
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">{userCount}</span>
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-white/10 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/90" />
+            <span className="text-xs sm:text-sm font-semibold text-white/90">{userCount}</span>
           </div>
         </div>
 
@@ -39,20 +39,20 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStar
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => onStartCall('audio')}
-            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all active:scale-95"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
             aria-label="Start audio call"
             title="Start audio call"
           >
-            <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+            <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
 
           <button
             onClick={() => onStartCall('video')}
-            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all active:scale-95"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
             aria-label="Start video call"
             title="Start video call"
           >
-            <Video className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
+            <Video className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
 
           {/* Share Room */}
@@ -61,20 +61,20 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStar
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleDarkMode}
-            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all active:scale-95"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
             aria-label="Toggle dark mode"
           >
             {darkMode ? (
-              <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+              <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             ) : (
-              <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+              <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             )}
           </button>
 
           {/* Leave Button */}
           <button
             onClick={onLeave}
-            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-lg sm:rounded-xl transition-all hover:shadow-lg active:scale-95"
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 hover:bg-red-500 text-white rounded-lg sm:rounded-xl transition-all active:scale-95"
           >
             <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Leave</span>

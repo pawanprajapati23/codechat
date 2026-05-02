@@ -97,7 +97,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
   const canSend = message.trim() || attachment;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0">
+    <form onSubmit={handleSubmit} className="bg-[#f0f2f5] dark:bg-[#111b21] border-t border-gray-200 dark:border-[#222e35] px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0">
       <div className="max-w-4xl mx-auto relative">
         {(attachment || fileError) && (
           <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60 px-3 py-2">
@@ -135,7 +135,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 sm:p-3.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all active:scale-95"
+            className="p-3 sm:p-3.5 rounded-full bg-transparent text-[#54656f] dark:text-[#aebac1] hover:bg-gray-200 dark:hover:bg-[#202c33] transition-all active:scale-95"
             aria-label="Attach image or PDF"
             title="Attach image or PDF"
           >
@@ -148,8 +148,8 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
             value={message}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-full sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
+            placeholder="Message"
+            className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-white dark:bg-[#202c33] text-gray-800 dark:text-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-[#25d366] transition-all placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
             autoComplete="off"
             autoFocus
           />
@@ -160,8 +160,8 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className={`absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 transition-colors ${
               showEmojiPicker 
-                ? 'text-purple-500 dark:text-purple-400' 
-                : 'text-gray-400 hover:text-purple-500 dark:hover:text-purple-400'
+                ? 'text-[#128c7e] dark:text-[#25d366]'
+                : 'text-gray-400 hover:text-[#128c7e] dark:hover:text-[#25d366]'
             }`}
             aria-label="Add emoji"
           >
@@ -175,7 +175,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
           disabled={!canSend}
           className={`p-3 sm:p-3.5 rounded-full transition-all ${
             canSend
-              ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:shadow-lg active:scale-95 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600'
+              ? 'bg-[#00a884] text-white hover:shadow-lg active:scale-95 hover:bg-[#008f72]'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
           }`}
           aria-label="Send message"
