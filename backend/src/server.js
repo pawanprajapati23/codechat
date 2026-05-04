@@ -27,7 +27,7 @@ const httpServer = createServer(app);
 // Socket.IO with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || ['http://localhost:5173', 'http://localhost:3000'],
+    origin: true,
     methods: ['GET', 'POST'],
     credentials: true
   },
@@ -44,7 +44,7 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || ['http://localhost:5173', 'http://localhost:3000'],
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
