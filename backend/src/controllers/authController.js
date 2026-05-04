@@ -70,9 +70,65 @@ const logout = async (req, res, next) => {
   }
 };
 
+const getQuestion = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.securityQuestion) {
+      return res.status(400).json({ error: 'No security question is set for this user' });
+    }
+
+    res.json({ question: user.securityQuestion });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, securityAnswer, newPassword } = req.body;
+    
+    if (!email || !securityAnswer || !newPassword) {
+      return res.status(400).json({ error: 'Email, security answer, and new password are required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+securityAnswer');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.securityAnswer) {
+      return res.status(400).json({ error: 'No security answer is set for this user' });
+    }
+
+    const bcrypt = require('bcrypt');
+    const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Incorrect security answer' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   signup,
   login,
   me,
-  logout
+  logout,
+  getQuestion,
+  resetPassword
 };

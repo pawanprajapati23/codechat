@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X } from 'lucide-react';
+import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion } from 'lucide-react';
 import { generateRoomCode, copyToClipboard } from '../utils/helpers';
-import { login, signup } from '../utils/api';
+import { login, signup, getQuestion, resetPassword } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Join = ({ onJoin, authUser }) => {
@@ -13,6 +13,17 @@ const Join = ({ onJoin, authUser }) => {
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [securityQuestion, setSecurityQuestion] = useState('');
+  const [securityAnswer, setSecurityAnswer] = useState('');
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
+  const [retrievedQuestion, setRetrievedQuestion] = useState('');
+
+  const securityQuestions = [
+    "What is your mother's maiden name?",
+    "What was the name of your first pet?",
+    "What city were you born in?",
+    "What is your favorite book?"
+  ];
 
   const handleGenerateCode = () => {
     const newCode = generateRoomCode();
@@ -40,9 +51,21 @@ const Join = ({ onJoin, authUser }) => {
       if (mode === 'signup' && !username.trim()) newErrors.username = 'Please enter your name';
       if (!email.trim()) newErrors.email = 'Email is required';
       if (!password) newErrors.password = 'Password is required';
+      if (mode === 'signup') {
+        if (!securityQuestion) newErrors.securityQuestion = 'Please select a security question';
+        if (!securityAnswer.trim()) newErrors.securityAnswer = 'Security answer is required';
+      }
     }
 
-    if (mode === 'guest' || authUser) {
+    if (mode === 'forgot') {
+      if (!email.trim()) newErrors.email = 'Email is required';
+      if (forgotPasswordStep === 2) {
+        if (!securityAnswer.trim()) newErrors.securityAnswer = 'Security answer is required';
+        if (!password) newErrors.password = 'New password is required';
+      }
+    }
+
+    if ((mode === 'guest' || authUser) && mode !== 'forgot' && mode !== 'login' && mode !== 'signup') {
       if (!roomCode.trim()) newErrors.roomCode = 'Room code is required';
     }
 
@@ -70,9 +93,22 @@ const Join = ({ onJoin, authUser }) => {
           token: localStorage.getItem('authToken'),
           roomCode: roomCode.trim().toUpperCase(),
         });
+      } else if (mode === 'forgot') {
+        if (forgotPasswordStep === 1) {
+          const res = await getQuestion({ email: email.trim() });
+          setRetrievedQuestion(res.question);
+          setForgotPasswordStep(2);
+        } else {
+          await resetPassword({ email: email.trim(), securityAnswer: securityAnswer.trim(), newPassword: password });
+          setMode('login');
+          setForgotPasswordStep(1);
+          setSecurityAnswer('');
+          setPassword('');
+          alert('Password reset successfully. Please login.');
+        }
       } else {
         const auth = mode === 'signup' 
-          ? await signup({ username: username.trim(), email: email.trim(), password })
+          ? await signup({ username: username.trim(), email: email.trim(), password, securityQuestion, securityAnswer: securityAnswer.trim() })
           : await login({ email: email.trim(), password });
         
         localStorage.setItem('authToken', auth.token);
@@ -213,7 +249,7 @@ const Join = ({ onJoin, authUser }) => {
 
       {/* Auth Modal using Framer Motion */}
       <AnimatePresence>
-        {(mode === 'login' || mode === 'signup') && (
+        {(mode === 'login' || mode === 'signup' || mode === 'forgot') && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -224,14 +260,14 @@ const Join = ({ onJoin, authUser }) => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-[#111b21] rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-gray-200 dark:border-[#2a3942] relative transition-colors"
+              className="bg-white dark:bg-[#111b21] rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-gray-200 dark:border-[#2a3942] relative transition-colors max-h-[90vh] overflow-y-auto"
             >
               <button onClick={closeAuth} className="absolute top-4 right-4 text-gray-400 dark:text-[#8696a0] hover:text-gray-800 dark:hover:text-[#e9edef] transition-colors">
                 <X size={24} />
               </button>
               
               <h2 className="text-2xl font-bold text-gray-900 dark:text-[#e9edef] mb-6 text-center">
-                {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+                {mode === 'login' ? 'Welcome Back' : mode === 'forgot' ? 'Reset Password' : 'Create Account'}
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -258,48 +294,112 @@ const Join = ({ onJoin, authUser }) => {
                   </div>
                 )}
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-600 dark:text-[#8696a0] block mb-1">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8696a0] h-5 w-5" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-gray-50 dark:bg-[#202c33] border border-gray-200 dark:border-[#2a3942] rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-[#e9edef] placeholder-gray-400 dark:placeholder-[#8696a0] focus:border-[#00a884] focus:outline-none focus:ring-1 focus:ring-[#00a884] transition-colors"
-                      placeholder="you@example.com"
-                    />
+                {(mode !== 'forgot' || (mode === 'forgot' && forgotPasswordStep === 1)) && (
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600 dark:text-[#8696a0] block mb-1">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8696a0] h-5 w-5" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-gray-50 dark:bg-[#202c33] border border-gray-200 dark:border-[#2a3942] rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-[#e9edef] placeholder-gray-400 dark:placeholder-[#8696a0] focus:border-[#00a884] focus:outline-none focus:ring-1 focus:ring-[#00a884] transition-colors"
+                        placeholder="you@example.com"
+                      />
+                    </div>
+                    {errors.email && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.email}</p>}
                   </div>
-                  {errors.email && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.email}</p>}
-                </div>
+                )}
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-600 dark:text-[#8696a0] block mb-1">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8696a0] h-5 w-5" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-gray-50 dark:bg-[#202c33] border border-gray-200 dark:border-[#2a3942] rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-[#e9edef] placeholder-gray-400 dark:placeholder-[#8696a0] focus:border-[#00a884] focus:outline-none focus:ring-1 focus:ring-[#00a884] transition-colors"
-                      placeholder="••••••••"
-                    />
+                {(mode !== 'forgot' || (mode === 'forgot' && forgotPasswordStep === 2)) && (
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600 dark:text-[#8696a0] block mb-1">
+                      {mode === 'forgot' ? 'New Password' : 'Password'}
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8696a0] h-5 w-5" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-gray-50 dark:bg-[#202c33] border border-gray-200 dark:border-[#2a3942] rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-[#e9edef] placeholder-gray-400 dark:placeholder-[#8696a0] focus:border-[#00a884] focus:outline-none focus:ring-1 focus:ring-[#00a884] transition-colors"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    {errors.password && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.password}</p>}
+                    {mode === 'login' && (
+                      <div className="flex justify-end mt-1">
+                        <button
+                          type="button"
+                          onClick={() => { openAuth('forgot'); setForgotPasswordStep(1); }}
+                          className="text-xs text-[#00a884] hover:text-[#008f72] dark:hover:text-[#25d366] transition-colors font-semibold"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {errors.password && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.password}</p>}
-                </div>
+                )}
+
+                {(mode === 'signup' || (mode === 'forgot' && forgotPasswordStep === 2)) && (
+                  <>
+                    {mode === 'forgot' && (
+                      <div className="p-3 bg-gray-50 dark:bg-[#202c33] rounded-xl border border-gray-200 dark:border-[#2a3942] mb-2 mt-2">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-[#8696a0] mb-1">Security Question</p>
+                        <p className="text-sm text-gray-900 dark:text-[#e9edef] font-medium">{retrievedQuestion}</p>
+                      </div>
+                    )}
+                    
+                    {mode === 'signup' && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600 dark:text-[#8696a0] block mb-1">Security Question</label>
+                        <div className="relative">
+                          <ShieldQuestion className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8696a0] h-5 w-5" />
+                          <select
+                            value={securityQuestion}
+                            onChange={(e) => setSecurityQuestion(e.target.value)}
+                            className="w-full bg-gray-50 dark:bg-[#202c33] border border-gray-200 dark:border-[#2a3942] rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-[#e9edef] focus:border-[#00a884] focus:outline-none focus:ring-1 focus:ring-[#00a884] transition-colors appearance-none"
+                          >
+                            <option value="" disabled>Select a question</option>
+                            {securityQuestions.map((q, i) => (
+                              <option key={i} value={q}>{q}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {errors.securityQuestion && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.securityQuestion}</p>}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600 dark:text-[#8696a0] block mb-1">Security Answer</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8696a0] h-5 w-5" />
+                        <input
+                          type="text"
+                          value={securityAnswer}
+                          onChange={(e) => setSecurityAnswer(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-[#202c33] border border-gray-200 dark:border-[#2a3942] rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-[#e9edef] placeholder-gray-400 dark:placeholder-[#8696a0] focus:border-[#00a884] focus:outline-none focus:ring-1 focus:ring-[#00a884] transition-colors"
+                          placeholder="Your answer"
+                        />
+                      </div>
+                      {errors.securityAnswer && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.securityAnswer}</p>}
+                    </div>
+                  </>
+                )}
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="w-full py-3 rounded-xl bg-[#00a884] hover:bg-[#008f72] text-white dark:text-[#111b21] font-bold text-lg shadow-lg transition-colors mt-4"
                 >
-                  {isSubmitting ? 'Please wait...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
+                  {isSubmitting ? 'Please wait...' : (mode === 'login' ? 'Sign In' : mode === 'forgot' ? (forgotPasswordStep === 1 ? 'Get Question' : 'Reset Password') : 'Create Account')}
                 </button>
               </form>
 
               <div className="mt-6 text-center text-sm text-gray-600 dark:text-[#8696a0]">
-                {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                {mode === 'login' ? "Don't have an account? " : mode === 'forgot' ? "Remember your password? " : "Already have an account? "}
                 <button
+                  type="button"
                   onClick={() => openAuth(mode === 'login' ? 'signup' : 'login')}
                   className="text-[#00a884] hover:text-[#008f72] dark:hover:text-[#25d366] font-semibold transition-colors"
                 >

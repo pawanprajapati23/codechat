@@ -30,6 +30,16 @@ export const login = (payload) => request('/api/auth/login', {
   body: JSON.stringify(payload),
 });
 
+export const getQuestion = (payload) => request('/api/auth/get-question', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+});
+
+export const resetPassword = (payload) => request('/api/auth/reset-password', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+});
+
 export const getMe = () => request('/api/auth/me');
 
 export const logout = () => request('/api/auth/logout', {
