@@ -1,174 +1,120 @@
 # CodeChat
 
-CodeChat is a mobile-first real-time chat app built with React, Socket.IO, and a Node/Express backend. I built it as a small, practical messaging experience: users can enter a name, join a room with a PIN, send messages, share attachments, react with emojis, and start audio or video calls from the same room.
+CodeChat is a modern, mobile-first real-time chat application designed for seamless messaging and rich media sharing. Built with a focus on responsiveness and user experience, it provides a familiar and intuitive interface for real-time communication.
 
-The UI is intentionally inspired by familiar messaging apps, with a WhatsApp-style join flow, chat layout, and in-call controls. The project focuses on the details that make a chat app feel usable on phones first, not just resized for mobile.
+## 🚀 Features
 
-## Live Project
+- **Real-Time Chat:** Instant messaging powered by Socket.IO with typing indicators and read receipts.
+- **Authentication (JWT):** Secure user authentication using JSON Web Tokens and password hashing with bcrypt.
+- **Guest + User Mode:** Flexibility to join as a registered user or enter chat rooms as a guest.
+- **Chat History:** Persistent chat history and message storage using MongoDB.
+- **Audio & Video Calls:** Peer-to-peer calling capabilities integrated directly into the chat interface using WebRTC.
+- **Rich Media Sharing:** Support for image sharing, PDF attachments, and voice message recording.
+- **Emoji Reactions:** Interactive emoji reactions on messages.
+- **Dark Mode Support:** Built-in theme support for comfortable viewing in any environment.
 
-- Frontend: https://codechatlove.vercel.app/
-- Backend: https://codechat-2atb.onrender.com
+## 🛠 Tech Stack
 
-## What It Does
+### Frontend
+- **Framework:** React 19 (Vite)
+- **Styling:** Tailwind CSS
+- **Real-Time:** Socket.IO Client
+- **Communication:** WebRTC APIs
+- **Icons:** Lucide React
 
-- Join a private room using a display name and room PIN
-- Real-time messaging with Socket.IO
-- Mobile-first chat interface with message bubbles, timestamps, typing indicators, and user count
-- Audio and video calls using WebRTC signaling over Socket.IO
-- Video call controls for mute, camera on/off, camera switch, and hang up
-- Self video preview during calls, similar to modern messaging apps
-- Emoji picker and message reactions
-- Image and PDF sharing with file size validation
-- Voice message recording
-- Code block rendering with syntax highlighting
-- Chat export and share-room helpers
-- Dark mode support
-- Local storage for chat history and preferences
+### Backend
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MongoDB (Mongoose)
+- **Real-Time:** Socket.IO
+- **Security:** JWT, Helmet, CORS, Rate Limiting
 
-## Tech Stack
+## 🌐 Live Demo
 
-**Frontend**
+- **Frontend:** [https://codechatlove.vercel.app/](https://codechatlove.vercel.app/)
+- **Backend:** [https://codechat-2atb.onrender.com](https://codechat-2atb.onrender.com)
 
-- React 19
-- Vite
-- Tailwind CSS
-- Socket.IO Client
-- WebRTC browser APIs
-- Lucide icons
-- emoji-picker-react
-- react-syntax-highlighter
+## 📥 Installation
 
-**Backend**
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/pawanprajapati23/codechat.git
+   cd codechat
+   ```
 
-- Node.js
-- Express
-- Socket.IO
-- Helmet, CORS, compression, rate limiting
-- Redis/MongoDB dependencies are included for scalable persistence work
+2. **Install dependencies:**
+   
+   Root dependencies (for development):
+   ```bash
+   npm install
+   ```
 
-## Project Structure
+   Backend dependencies:
+   ```bash
+   cd backend
+   npm install
+   ```
+
+   Frontend dependencies:
+   ```bash
+   cd ../frontend
+   npm install
+   ```
+
+3. **Environment Setup:**
+   Create a `.env` file in both `backend/` and `frontend/` directories using the provided `.env.example` as a template.
+
+   **Backend `.env`:**
+   ```env
+   PORT=3001
+   MONGODB_URI=your_mongodb_uri
+   JWT_SECRET=your_jwt_secret
+   FRONTEND_URL=http://localhost:5173
+   ```
+
+   **Frontend `.env`:**
+   ```env
+   VITE_BACKEND_URL=http://localhost:3001
+   ```
+
+## 🚀 Running the Project
+
+### Using Concurrently (from root)
+Run both backend and frontend simultaneously:
+```bash
+npm run dev
+```
+
+### Manual Execution
+
+**Start Backend:**
+```bash
+cd backend
+npm run dev
+```
+
+**Start Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+## 📁 Project Structure
 
 ```text
 codechat/
-├── backend/
-│   ├── src/
-│   │   ├── server.js
-│   │   └── utils/
+├── backend/          # Node.js + Express server
+│   ├── src/          # Source code
 │   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Join.jsx
-│   │   │   ├── Chat.jsx
-│   │   │   ├── Header.jsx
-│   │   │   ├── MessageBubble.jsx
-│   │   │   ├── MessageInput.jsx
-│   │   │   ├── VideoCall.jsx
-│   │   │   └── VoiceRecorder.jsx
-│   │   ├── hooks/
-│   │   ├── utils/
-│   │   ├── App.jsx
-│   │   └── main.jsx
+├── frontend/         # React + Vite application
+│   ├── src/          # Source code
 │   └── package.json
-└── README.md
+├── .env.example      # Environment variables template
+├── .gitignore        # Git ignore rules
+├── package.json      # Root package.json
+└── README.md         # Project documentation
 ```
 
-## Local Setup
+## 📜 License
 
-Clone the repo and install both apps:
-
-```bash
-git clone https://github.com/pawanprajapati23/codechat.git
-cd codechat
-
-cd backend
-npm install
-
-cd ../frontend
-npm install
-```
-
-Create a frontend environment file:
-
-```bash
-cd frontend
-echo "VITE_BACKEND_URL=http://localhost:3001" > .env
-```
-
-Run the backend:
-
-```bash
-cd backend
-npm run dev
-```
-
-Run the frontend in another terminal:
-
-```bash
-cd frontend
-npm run dev
-```
-
-## Available Scripts
-
-Frontend:
-
-```bash
-npm run dev
-npm run build
-npm run preview
-npm run lint
-```
-
-Backend:
-
-```bash
-npm start
-npm run dev
-```
-
-## Real-Time Events
-
-The app uses Socket.IO for room and WebRTC signaling events.
-
-Chat events:
-
-- `join`
-- `sendMessage`
-- `message`
-- `typing`
-- `stopTyping`
-- `reaction`
-- `leave`
-- `userCount`
-- `systemMessage`
-
-Call signaling events:
-
-- `call:join`
-- `call:offer`
-- `call:answer`
-- `call:ice-candidate`
-- `call:leave`
-- `call:end`
-- `call:user-joined`
-- `call:user-left`
-- `call:ended`
-
-## Notes For Reviewers
-
-This project is not just a static UI. The main parts I wanted to demonstrate are:
-
-- Real-time room state with Socket.IO
-- Practical WebRTC call flow with offer, answer, ICE candidate handling, and media track replacement
-- Mobile-first component design
-- Small UX details like copy feedback, generated room PINs, typing states, self video preview, and call controls
-- Clean separation between chat UI, socket connection utilities, message components, and call UI
-
-## Current Status
-
-The app supports chat, attachments, emoji reactions, voice recording, audio calls, video calls, self preview, camera toggle, and camera switching. The frontend production build is passing.
-
-## License
-
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
