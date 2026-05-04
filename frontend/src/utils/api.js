@@ -1,4 +1,4 @@
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://codechat-5oju.onrender.com';
 
 const request = async (path, options = {}) => {
   const token = localStorage.getItem('authToken');
