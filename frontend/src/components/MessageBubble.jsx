@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, CheckCheck, Download, FileText } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
+import { motion } from 'framer-motion';
 
 const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
   const { text, timestamp, sender, reactions = {}, attachment, status } = message;
@@ -100,7 +101,12 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
   const totalReactions = Object.values(reactions).reduce((sum, count) => sum + count, 0);
 
   return (
-    <div className={`flex items-end gap-2 mb-1.5 sm:mb-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className={`flex items-end gap-2 mb-1.5 sm:mb-2 ${isOwn ? 'flex-row-reverse' : ''}`}
+    >
       {/* Avatar */}
       {!isOwn && (
         <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full ${userColor} flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md`}>
@@ -119,10 +125,10 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
 
         {/* Message Content */}
         <div
-          className={`rounded-lg ${hasCodeBlock ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-3.5 py-2'} shadow-sm ${
+          className={`rounded-2xl ${hasCodeBlock ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-3.5 py-2'} shadow-sm ${
             isOwn
-              ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-gray-900 dark:text-gray-50 rounded-br-sm'
-              : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-gray-100 rounded-bl-sm border border-white/60 dark:border-[#26343d]'
+              ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-gray-900 dark:text-[#e9edef] rounded-tr-sm'
+              : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-[#e9edef] rounded-tl-sm border border-transparent dark:border-transparent'
           }`}
           onDoubleClick={() => setShowReactions(!showReactions)}
         >
@@ -173,7 +179,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
           Double-click to react
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

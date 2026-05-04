@@ -61,4 +61,3 @@ const ThemeSelector = ({ currentTheme = 0, onThemeChange }) => {
 };
 
 export default ThemeSelector;
-export { themes };

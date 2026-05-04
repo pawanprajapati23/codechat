@@ -4,14 +4,14 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 let socket = null;
 
-export const initializeSocket = (token = localStorage.getItem('authToken')) => {
+export const initializeSocket = (token = localStorage.getItem('authToken'), username = null) => {
   if (!socket) {
     if (import.meta.env.DEV) {
       console.log('🔌 Connecting to backend:', BACKEND_URL);
     }
     
     socket = io(BACKEND_URL, {
-      auth: { token },
+      auth: { token, username },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,

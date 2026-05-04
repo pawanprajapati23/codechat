@@ -371,24 +371,24 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
       )}
 
       {isInCall && (
-        <div className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 z-[60] sm:w-[min(92vw,420px)] sm:rounded-3xl border border-gray-800 bg-[#0b141a] shadow-2xl overflow-hidden">
-          <div className="relative min-h-[100dvh] sm:min-h-[520px] bg-[#111b21]">
+        <div className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 z-[60] sm:w-[min(92vw,420px)] sm:rounded-3xl border border-gray-200 dark:border-[#202c33] bg-gray-50 dark:bg-[#0b141a] shadow-2xl overflow-hidden transition-colors">
+          <div className="relative min-h-[100dvh] sm:min-h-[520px] bg-black sm:bg-white sm:dark:bg-[#111b21] transition-colors">
             <div className="absolute inset-0">
               {callType === 'video' && remoteStreams[0] ? (
                 <RemoteVideo stream={remoteStreams[0].stream} isAudioOnly={false} className="h-full w-full rounded-none" />
               ) : (
-                <div className="flex h-full flex-col items-center justify-center bg-[#111b21] text-white">
-                  <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-200">
+                <div className="flex h-full flex-col items-center justify-center bg-gray-100 dark:bg-[#111b21] text-gray-900 dark:text-white transition-colors">
+                  <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gray-200 dark:bg-[#202c33] text-[#00a884] dark:text-[#25d366] transition-colors">
                     <User className="h-12 w-12" />
                   </div>
                   <p className="text-lg font-semibold">{remoteStreams.length ? 'Connected' : 'Calling...'}</p>
-                  <p className="mt-1 text-sm text-gray-400">{callType === 'audio' ? 'Audio call' : 'Waiting for video'}</p>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-[#8696a0]">{callType === 'audio' ? 'Audio call' : 'Waiting for video'}</p>
                 </div>
               )}
             </div>
 
             {callType === 'video' && (
-              <div className="absolute right-3 top-4 h-36 w-24 overflow-hidden rounded-2xl border border-white/20 bg-gray-950 shadow-xl sm:h-32 sm:w-24">
+              <div className="absolute right-3 top-4 h-36 w-24 overflow-hidden rounded-2xl border border-gray-300 dark:border-white/20 bg-gray-900 dark:bg-gray-950 shadow-xl sm:h-32 sm:w-24">
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -397,34 +397,34 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
                   className={`h-full w-full object-cover ${isCameraOff ? 'hidden' : ''}`}
                 />
                 {isCameraOff && (
-                  <div className="flex h-full w-full items-center justify-center bg-gray-900 text-gray-300">
+                  <div className="flex h-full w-full items-center justify-center bg-gray-800 dark:bg-gray-900 text-gray-300">
                     <VideoOff className="h-6 w-6" />
                   </div>
                 )}
               </div>
             )}
 
-            <div className="absolute left-0 right-0 top-0 bg-gradient-to-b from-black/70 to-transparent px-4 py-5 text-white">
+            <div className="absolute left-0 right-0 top-0 bg-gradient-to-b from-black/60 dark:from-black/70 to-transparent px-4 py-5 text-white pointer-events-none">
               <p className="text-sm font-medium">{remoteStreams.length + 1} in {callType} call</p>
-              <p className="text-xs text-gray-300">{username}</p>
+              <p className="text-xs text-gray-200 dark:text-gray-300">{username}</p>
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-5 pb-7 pt-20">
-              <div className="mx-auto flex max-w-xs items-center justify-center gap-4 rounded-full bg-[#202c33]/90 px-4 py-3 backdrop-blur">
-                <button onClick={toggleMic} className={`p-3 rounded-full text-white ${isMicMuted ? 'bg-white/20' : 'bg-[#2a3942] hover:bg-[#324650]'}`} aria-label={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 dark:from-black/80 to-transparent px-5 pb-7 pt-20 pointer-events-none">
+              <div className="mx-auto flex max-w-xs items-center justify-center gap-4 rounded-full bg-white/90 dark:bg-[#202c33]/90 px-4 py-3 backdrop-blur pointer-events-auto shadow-lg">
+                <button onClick={toggleMic} className={`p-3 rounded-full transition-colors ${isMicMuted ? 'bg-gray-200 text-gray-600 dark:bg-white/20 dark:text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-[#2a3942] dark:hover:bg-[#324650] dark:text-white'}`} aria-label={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}>
                   {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
                 {callType === 'video' && (
                   <>
-                    <button onClick={switchCamera} className="p-3 rounded-full bg-[#2a3942] text-white hover:bg-[#324650]" aria-label="Switch camera">
+                    <button onClick={switchCamera} className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-[#2a3942] dark:hover:bg-[#324650] dark:text-white transition-colors" aria-label="Switch camera">
                       <SwitchCamera className="w-5 h-5" />
                     </button>
-                    <button onClick={toggleCamera} className={`p-3 rounded-full text-white ${isCameraOff ? 'bg-white/20' : 'bg-[#2a3942] hover:bg-[#324650]'}`} aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}>
+                    <button onClick={toggleCamera} className={`p-3 rounded-full transition-colors ${isCameraOff ? 'bg-gray-200 text-gray-600 dark:bg-white/20 dark:text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-[#2a3942] dark:hover:bg-[#324650] dark:text-white'}`} aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}>
                       {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
                     </button>
                   </>
                 )}
-                <button onClick={() => endCall(true)} className="p-3 rounded-full bg-red-600 hover:bg-red-700 text-white" aria-label="End call">
+                <button onClick={() => endCall(true)} className="p-3 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors" aria-label="End call">
                   <PhoneOff className="w-5 h-5" />
                 </button>
               </div>

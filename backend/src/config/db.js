@@ -14,7 +14,8 @@ const connectDB = async () => {
     return connection;
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
-    throw error;
+    // Don't throw, let the server start
+    return null;
   }
 };
 

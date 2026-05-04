@@ -43,9 +43,13 @@ function App() {
   }, []);
 
   const handleJoin = ({ user, token, roomCode }) => {
-    localStorage.setItem('authToken', token);
+    if (token) {
+      localStorage.setItem('authToken', token);
+    } else {
+      localStorage.removeItem('authToken');
+    }
     setAuthUser(user);
-    initializeSocket(token);
+    initializeSocket(token, user?.username);
     setUserData({ username: user.username, roomCode });
     setIsJoined(true);
   };

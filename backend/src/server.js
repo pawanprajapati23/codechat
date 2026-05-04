@@ -293,29 +293,47 @@ io.on('connection', (socket) => {
         timestamp: message.timestamp ? new Date(message.timestamp) : new Date()
       };
 
-      const savedMessage = await Message.create(messageData);
-      await savedMessage.populate('senderId', 'username email profilePic');
-      await upsertConversation({
-        roomCode: savedMessage.roomCode,
-        senderId: socket.user._id,
-        text: savedMessage.message,
-        timestamp: savedMessage.timestamp
-      });
+      let clientMessage;
+      let messageId = new mongoose.Types.ObjectId().toString(); // Default ID for guests
+
+      if (!socket.user.isGuest) {
+        const savedMessage = await Message.create(messageData);
+        await savedMessage.populate('senderId', 'username email profilePic');
+        await upsertConversation({
+          roomCode: savedMessage.roomCode,
+          senderId: socket.user._id,
+          text: savedMessage.message,
+          timestamp: savedMessage.timestamp
+        });
+        messageId = savedMessage._id.toString();
+        clientMessage = toClientMessage(savedMessage);
+      } else {
+        clientMessage = {
+          id: messageId,
+          roomCode: messageData.roomCode,
+          message: messageData.message,
+          messageType: messageData.messageType,
+          mediaUrl: messageData.mediaUrl,
+          attachment: messageData.attachment,
+          status: 'sent',
+          timestamp: messageData.timestamp.toISOString(),
+          senderId: socket.user._id.toString()
+        };
+      }
+
       if (normalizedRoomCode) {
         roomManager.incrementMessageCount(normalizedRoomCode);
       }
 
-      const clientMessage = toClientMessage(savedMessage);
       clientMessage.sender = currentUser.name;
       clientMessage.status = isDirectMessage || room.users.length > 1 ? 'delivered' : 'sent';
 
-      if (clientMessage.status === 'delivered') {
-        savedMessage.status = 'delivered';
-        await savedMessage.save();
+      if (clientMessage.status === 'delivered' && !socket.user.isGuest) {
+        await Message.findByIdAndUpdate(messageId, { status: 'delivered' });
       }
 
       // Keep legacy in-memory handlers populated for backward-compatible diagnostics.
-      messageHandler.saveMessage(savedMessage.roomCode, {
+      messageHandler.saveMessage(clientMessage.roomCode, {
         ...clientMessage,
         sender: currentUser.name,
         text: message.text || '',
@@ -338,7 +356,7 @@ io.on('connection', (socket) => {
         });
       }
 
-      console.log(`💬 Message in ${savedMessage.roomCode}: ${message.text?.substring(0, 30) || '[media]'}`);
+      console.log(`💬 Message in ${clientMessage.roomCode}: ${message.text?.substring(0, 30) || '[media]'}`);
     } catch (error) {
       console.error('Send message error:', error);
       socket.emit('error', { message: 'Failed to send message' });
@@ -557,10 +575,13 @@ io.on('connection', (socket) => {
 
       console.log(`👋 ${currentUser.name} disconnected from room: ${currentRoom}`);
     }
-    User.findByIdAndUpdate(socket.user._id, {
-      isOnline: false,
-      lastSeen: new Date()
-    }).catch((error) => console.error('Offline status error:', error));
+    
+    if (!socket.user.isGuest) {
+      User.findByIdAndUpdate(socket.user._id, {
+        isOnline: false,
+        lastSeen: new Date()
+      }).catch((error) => console.error('Offline status error:', error));
+    }
     console.log(`❌ User disconnected: ${socket.id}`);
   });
 

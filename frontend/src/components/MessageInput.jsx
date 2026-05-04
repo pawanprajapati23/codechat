@@ -97,15 +97,15 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
   const canSend = message.trim() || attachment;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[#f0f2f5] dark:bg-[#111b21] border-t border-gray-200 dark:border-[#222e35] px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0">
+    <form onSubmit={handleSubmit} className="bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200 dark:border-[#2a3942] px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0 transition-colors">
       <div className="max-w-4xl mx-auto relative">
         {(attachment || fileError) && (
-          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60 px-3 py-2">
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-[#2a3942] bg-gray-50 dark:bg-[#111b21] px-3 py-2">
             <div className="min-w-0 flex items-center gap-2">
               {attachment?.type?.startsWith('image/') ? (
-                <ImagePlus className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <ImagePlus className="w-4 h-4 text-[#25d366] flex-shrink-0" />
               ) : (
-                <Paperclip className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <Paperclip className="w-4 h-4 text-[#25d366] flex-shrink-0" />
               )}
               <span className={`truncate text-xs sm:text-sm ${fileError ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200'}`}>
                 {fileError || attachment.name}
@@ -135,7 +135,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 sm:p-3.5 rounded-full bg-transparent text-[#54656f] dark:text-[#aebac1] hover:bg-gray-200 dark:hover:bg-[#202c33] transition-all active:scale-95"
+            className="p-3 sm:p-3.5 rounded-full bg-transparent text-[#54656f] dark:text-[#8696a0] hover:bg-gray-200 dark:hover:bg-[#2a3942] transition-all active:scale-95"
             aria-label="Attach image or PDF"
             title="Attach image or PDF"
           >
@@ -148,8 +148,8 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
             value={message}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
-            placeholder="Message"
-            className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-white dark:bg-[#202c33] text-gray-800 dark:text-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-[#25d366] transition-all placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
+            placeholder="Type a message"
+            className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-white dark:bg-[#2a3942] text-gray-800 dark:text-[#d1d7db] rounded-full focus:outline-none focus:ring-1 focus:ring-[#25d366] transition-all placeholder-gray-400 dark:placeholder-[#8696a0] text-sm sm:text-base"
             autoComplete="off"
             autoFocus
           />
@@ -161,7 +161,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
             className={`absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 transition-colors ${
               showEmojiPicker 
                 ? 'text-[#128c7e] dark:text-[#25d366]'
-                : 'text-gray-400 hover:text-[#128c7e] dark:hover:text-[#25d366]'
+                : 'text-gray-400 dark:text-[#8696a0] hover:text-[#128c7e] dark:hover:text-[#25d366]'
             }`}
             aria-label="Add emoji"
           >
@@ -175,8 +175,8 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
           disabled={!canSend}
           className={`p-3 sm:p-3.5 rounded-full transition-all ${
             canSend
-              ? 'bg-[#00a884] text-white hover:shadow-lg active:scale-95 hover:bg-[#008f72]'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+              ? 'bg-[#00a884] dark:bg-[#25d366] text-white dark:text-[#111b21] hover:shadow-lg active:scale-95 hover:bg-[#008f72] dark:hover:bg-[#20c05c]'
+              : 'bg-gray-200 dark:bg-[#2a3942] text-gray-400 dark:text-[#8696a0] cursor-not-allowed'
           }`}
           aria-label="Send message"
         >

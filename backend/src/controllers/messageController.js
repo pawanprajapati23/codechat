@@ -50,6 +50,20 @@ const getDirectMessages = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid user id' });
     }
 
+    // If fetching for self, return a list of recent rooms/conversations
+    if (selectedUserId.toString() === req.user._id.toString()) {
+      const conversations = await Conversation.find({ participants: req.user._id })
+        .sort({ lastMessageTime: -1 });
+      
+      const formattedConversations = conversations.map(c => ({
+        roomCode: c.roomCode,
+        lastMessage: c.lastMessage,
+        lastMessageTime: c.lastMessageTime,
+        unreadCount: c.unreadCount.find(u => u.userId.toString() === req.user._id.toString())?.count || 0
+      }));
+      return res.json({ conversations: formattedConversations });
+    }
+
     const messages = await Message.find({
       $or: [
         { senderId: req.user._id, receiverId: selectedUserId },

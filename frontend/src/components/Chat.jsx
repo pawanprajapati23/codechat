@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getSocket } from '../utils/socketConnection';
 import { playNotificationSound } from '../utils/helpers';
-import { getRoomMessages } from '../utils/api';
+import { getRoomMessages, getDirectMessages } from '../utils/api';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
@@ -9,16 +9,22 @@ import TypingIndicator from './TypingIndicator';
 import ConnectionStatus from './ConnectionStatus';
 import { MessageSkeleton } from './LoadingSkeleton';
 import VideoCall from './VideoCall';
+import { LogIn, MessageSquare, X } from 'lucide-react';
 
-const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode }) => {
+const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, toggleDarkMode }) => {
+  const [activeRoom, setActiveRoom] = useState(initialRoomCode);
   const [messages, setMessages] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [userCount, setUserCount] = useState(1);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [requestedCall, setRequestedCall] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const socket = getSocket();
   const typingTimeoutRef = useRef(null);
+
+  const isGuest = !userId;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -28,11 +34,25 @@ const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode })
     scrollToBottom();
   }, [messages, typingUsers]);
 
+  // Fetch sidebar conversations for logged-in users
   useEffect(() => {
-    let hasJoined = false;
-    let isActive = true;
+    if (!isGuest) {
+      getDirectMessages(userId)
+        .then((data) => {
+          if (data.conversations) {
+            setConversations(data.conversations);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [userId, isGuest]);
 
-    getRoomMessages(roomCode)
+  useEffect(() => {
+    let isActive = true;
+    setIsLoading(true);
+    setMessages([]);
+
+    getRoomMessages(activeRoom)
       .then(({ messages: savedMessages }) => {
         if (isActive) {
           setMessages(savedMessages);
@@ -45,20 +65,20 @@ const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode })
         if (isActive) setIsLoading(false);
       });
 
-    // Message handler
     const handleMessage = (message) => {
-      if (isActive) {
+      if (isActive && message.roomCode === activeRoom) {
         setMessages((prev) => {
           if (prev.some((existing) => existing.id && existing.id === message.id)) {
             return prev;
           }
-
           return [...prev, message];
         });
         
         if (message.senderId !== userId && message.sender !== username) {
           playNotificationSound();
-          socket.emit('message-status', { messageId: message.id, status: 'seen' });
+          if (!isGuest) {
+            socket.emit('message-status', { messageId: message.id, status: 'seen' });
+          }
         }
       }
     };
@@ -71,24 +91,21 @@ const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode })
       }
     };
 
-    const handleMessagesSeen = () => {
-      if (isActive) {
+    const handleMessagesSeen = (data) => {
+      if (isActive && data.roomCode === activeRoom) {
         setMessages((prev) => prev.map((message) => (
           message.senderId === userId ? { ...message, status: 'seen' } : message
         )));
       }
     };
 
-    // User count handler
     const handleUserCount = (count) => {
       if (isActive) setUserCount(count);
     };
 
-    // Typing handler
     const handleTyping = ({ username: typingUser }) => {
       if (isActive && typingUser !== username) {
         setTypingUsers((prev) => new Set(prev).add(typingUser));
-        
         setTimeout(() => {
           if (isActive) {
             setTypingUsers((prev) => {
@@ -101,14 +118,12 @@ const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode })
       }
     };
 
-    // System message handler
     const handleSystemMessage = (message) => {
       if (isActive) {
         setMessages((prev) => [...prev, { ...message, isSystem: true }]);
       }
     };
 
-    // Register event listeners FIRST
     socket.on('message', handleMessage);
     socket.on('userCount', handleUserCount);
     socket.on('typing', handleTyping);
@@ -116,11 +131,8 @@ const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode })
     socket.on('message-status', handleMessageStatus);
     socket.on('messages-seen', handleMessagesSeen);
 
-    // Join room ONLY ONCE after listeners are set
-    if (!hasJoined) {
-      socket.emit('join', { username, roomCode });
-      hasJoined = true;
-    }
+    // Join room when activeRoom changes
+    socket.emit('join', { username, roomCode: activeRoom });
 
     return () => {
       isActive = false;
@@ -131,53 +143,36 @@ const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode })
       socket.off('message-status', handleMessageStatus);
       socket.off('messages-seen', handleMessagesSeen);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeRoom, username, userId, socket, isGuest]);
 
   const handleSendMessage = (text) => {
-    const message = {
-      text,
-      sender: username,
-      senderId: userId,
-      timestamp: Date.now(),
-    };
-
-    socket.emit('sendMessage', {
-      roomCode,
-      message
-    });
+    const message = { text, sender: username, senderId: userId, timestamp: Date.now() };
+    socket.emit('sendMessage', { roomCode: activeRoom, message });
   };
 
   const handleSendAttachment = (attachment, text = '') => {
-    const message = {
-      text,
-      attachment,
-      sender: username,
-      senderId: userId,
-      timestamp: Date.now(),
-    };
-
-    socket.emit('sendMessage', {
-      roomCode,
-      message
-    });
+    const message = { text, attachment, sender: username, senderId: userId, timestamp: Date.now() };
+    socket.emit('sendMessage', { roomCode: activeRoom, message });
   };
 
   const handleTyping = () => {
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    socket.emit('typing', { username, roomCode });
-
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socket.emit('typing', { username, roomCode: activeRoom });
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('stopTyping', { username, roomCode });
+      socket.emit('stopTyping', { username, roomCode: activeRoom });
     }, 1000);
   };
 
   const handleLeave = () => {
-    socket.emit('leave', { username, roomCode });
+    socket.emit('leave', { username, roomCode: activeRoom });
     onLeave();
+  };
+
+  const switchRoom = (code) => {
+    if (code === activeRoom) return;
+    socket.emit('leave', { username, roomCode: activeRoom });
+    setActiveRoom(code);
+    setSidebarOpen(false);
   };
 
   const handleReaction = (message, emoji) => {
@@ -190,100 +185,173 @@ const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode })
       return msg;
     });
     setMessages(updatedMessages);
-    
-    // Emit reaction to other users
     socket.emit('reaction', {
       messageId: message.timestamp,
       sender: message.sender,
       emoji,
-      roomCode,
+      roomCode: activeRoom,
     });
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#efeae2] dark:bg-[#0b141a]">
+    <div className="flex h-[100dvh] bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden font-sans">
       <ConnectionStatus />
-      <Header
-        roomCode={roomCode}
-        userCount={userCount}
-        onLeave={handleLeave}
-        darkMode={darkMode}
-        toggleDarkMode={toggleDarkMode}
-        onStartCall={setRequestedCall}
-      />
-
-      <VideoCall
-        roomCode={roomCode}
-        username={username}
-        requestedCall={requestedCall}
-        onRequestHandled={() => setRequestedCall(null)}
-      />
-
-      {/* Messages Container */}
-      <div
-        className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 overscroll-contain"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 20% 15%, rgba(0,0,0,0.035) 0 1px, transparent 1px), radial-gradient(circle at 80% 35%, rgba(0,0,0,0.03) 0 1px, transparent 1px)',
-          backgroundSize: '34px 34px',
-        }}
-      >
-        <div className="max-w-4xl mx-auto space-y-2">
-          {isLoading ? (
-            <>
-              <MessageSkeleton isOwn={false} />
-              <MessageSkeleton isOwn={true} />
-              <MessageSkeleton isOwn={false} />
-            </>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl sm:text-4xl">💬</span>
+      
+      {/* Sidebar for Logged-in Users */}
+      {!isGuest && (
+        <>
+          <div 
+            className={`fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-[#111b21] border-r border-gray-200 dark:border-[#202c33] transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          >
+            <div className="flex flex-col h-full">
+              <div className="p-4 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between transition-colors">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-[#e9edef] flex items-center gap-2">
+                  <MessageSquare className="text-[#00a884]" size={20} />
+                  Chats
+                </h2>
+                <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                  <X size={24} />
+                </button>
               </div>
-              <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base text-center">
-                No messages yet
-              </p>
-              <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm mt-1 text-center">
-                Be the first to say hi! 👋
-              </p>
-            </div>
-          ) : (
-            messages.map((msg, index) => {
-              if (msg.isSystem) {
-                return (
-                  <div key={index} className="flex justify-center py-2">
-                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-white/70 dark:bg-[#182229]/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-white/60 dark:border-[#26343d]">
-                      {msg.text}
-                    </span>
+              <div className="flex-1 overflow-y-auto">
+                {conversations.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-gray-500">
+                    No past conversations found. Join more rooms!
                   </div>
-                );
-              }
-              
-              return (
-                <MessageBubble
-                  key={msg.id || `${msg.sender}-${msg.timestamp}-${index}`}
-                  message={msg}
-                  isOwn={msg.sender === username}
-                  darkMode={darkMode}
-                  onReaction={handleReaction}
-                />
-              );
-            })
+                ) : (
+                  conversations.map((conv) => (
+                    <div 
+                      key={conv.roomCode}
+                      onClick={() => switchRoom(conv.roomCode)}
+                      className={`p-4 border-b border-gray-100 dark:border-gray-800/50 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#202c33] transition-colors ${activeRoom === conv.roomCode ? 'bg-gray-100 dark:bg-[#2a3942]' : ''}`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">#{conv.roomCode}</span>
+                        {conv.lastMessageTime && (
+                          <span className="text-xs text-gray-500">{new Date(conv.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 dark:text-gray-400 truncate pr-4">
+                          {conv.lastMessage || 'Media'}
+                        </span>
+                        {conv.unreadCount > 0 && (
+                          <span className="bg-[#00a884] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            {conv.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+          {sidebarOpen && (
+            <div 
+              className="fixed inset-0 bg-black/50 z-30 md:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
           )}
+        </>
+      )}
 
-          {Array.from(typingUsers).map((typingUser) => (
-            <TypingIndicator key={typingUser} username={typingUser} />
-          ))}
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-full relative">
+        <Header
+          roomCode={activeRoom}
+          userCount={userCount}
+          onLeave={handleLeave}
+          darkMode={darkMode}
+          toggleDarkMode={toggleDarkMode}
+          onStartCall={setRequestedCall}
+          onOpenSidebar={() => setSidebarOpen(true)}
+          showSidebarBtn={!isGuest && !sidebarOpen}
+        />
 
-          <div ref={messagesEndRef} />
+        {isGuest && (
+          <div className="bg-gray-100 dark:bg-[#182229] border-b border-gray-200 dark:border-[#202c33] text-gray-600 dark:text-[#8696a0] text-sm py-2 px-4 flex items-center justify-between z-10 transition-colors">
+            <div className="flex items-center gap-2">
+              <LogIn size={16} className="text-[#00a884]" />
+              <span className="font-medium">Login to save your chats</span>
+            </div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-3 py-1 bg-[#00a884] hover:bg-[#008f72] text-white rounded-full text-xs font-bold transition"
+            >
+              Login
+            </button>
+          </div>
+        )}
+
+        <VideoCall
+          roomCode={activeRoom}
+          username={username}
+          requestedCall={requestedCall}
+          onRequestHandled={() => setRequestedCall(null)}
+        />
+
+        <div
+          className="flex-1 overflow-y-auto px-4 py-6"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 20% 15%, rgba(0,0,0,0.035) 0 1px, transparent 1px), radial-gradient(circle at 80% 35%, rgba(0,0,0,0.03) 0 1px, transparent 1px)',
+            backgroundSize: '34px 34px',
+          }}
+        >
+          <div className="max-w-4xl mx-auto space-y-4">
+            {isLoading ? (
+              <>
+                <MessageSkeleton isOwn={false} />
+                <MessageSkeleton isOwn={true} />
+              </>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 px-4">
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-[#2a3942] dark:to-[#202c33] rounded-full flex items-center justify-center mb-4">
+                  <span className="text-4xl">💬</span>
+                </div>
+                <p className="text-gray-500 dark:text-[#8696a0] font-medium text-center">
+                  Start of conversation in #{activeRoom}
+                </p>
+              </div>
+            ) : (
+              messages.map((msg, index) => {
+                if (msg.isSystem) {
+                  return (
+                    <div key={index} className="flex justify-center py-2">
+                      <span className="text-xs text-gray-600 dark:text-[#8696a0] bg-white/60 dark:bg-[#202c33]/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm">
+                        {msg.text}
+                      </span>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <MessageBubble
+                    key={msg.id || `${msg.sender}-${msg.timestamp}-${index}`}
+                    message={msg}
+                    isOwn={msg.sender === username}
+                    darkMode={darkMode}
+                    onReaction={handleReaction}
+                  />
+                );
+              })
+            )}
+
+            {Array.from(typingUsers).map((typingUser) => (
+              <TypingIndicator key={typingUser} username={typingUser} />
+            ))}
+
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-      </div>
 
-      <MessageInput
-        onSendMessage={handleSendMessage}
-        onSendAttachment={handleSendAttachment}
-        onTyping={handleTyping}
-      />
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          onSendAttachment={handleSendAttachment}
+          onTyping={handleTyping}
+        />
+      </div>
     </div>
   );
 };

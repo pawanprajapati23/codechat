@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Check, Copy, LogOut, Moon, Phone, Sun, Users, Video } from 'lucide-react';
+import { Check, Copy, LogOut, Moon, Phone, Sun, Users, Video, Menu } from 'lucide-react';
 import { copyToClipboard } from '../utils/helpers';
 import ShareRoom from './ShareRoom';
 
-const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStartCall }) => {
+const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStartCall, onOpenSidebar, showSidebarBtn }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -15,10 +15,19 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStar
   };
 
   return (
-    <header className="bg-[#075e54] dark:bg-[#111b21] border-b border-[#064e46] dark:border-[#222e35] px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm sticky top-0 z-50">
-      <div className="flex items-center justify-between max-w-4xl mx-auto">
+    <header className="bg-[#00a884] dark:bg-[#202c33] border-b border-[#008f72] dark:border-[#2a3942] px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm sticky top-0 z-50 transition-colors">
+      <div className="flex items-center justify-between w-full mx-auto">
         {/* Left: Room Info */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {showSidebarBtn && (
+            <button 
+              onClick={onOpenSidebar}
+              className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-lg md:hidden"
+              aria-label="Open sidebar"
+            >
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+          )}
           <div className="bg-white/10 text-white rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:bg-white/20 transition-all active:scale-95"
                onClick={handleCopy}>
             <span className="font-bold text-xs sm:text-sm font-mono tracking-wider">{roomCode}</span>
