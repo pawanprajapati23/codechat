@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getSocket } from '../utils/socketConnection';
 import { playNotificationSound } from '../utils/helpers';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { getRoomMessages } from '../utils/api';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
@@ -10,8 +10,8 @@ import ConnectionStatus from './ConnectionStatus';
 import { MessageSkeleton } from './LoadingSkeleton';
 import VideoCall from './VideoCall';
 
-const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
-  const [messages, setMessages] = useLocalStorage(`chat_${roomCode}`, []);
+const Chat = ({ username, userId, roomCode, onLeave, darkMode, toggleDarkMode }) => {
+  const [messages, setMessages] = useState([]);
   const [userCount, setUserCount] = useState(1);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -32,19 +32,50 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
     let hasJoined = false;
     let isActive = true;
 
-    // Simulate loading for better UX
-    const loadingTimer = setTimeout(() => {
-      if (isActive) setIsLoading(false);
-    }, 800);
+    getRoomMessages(roomCode)
+      .then(({ messages: savedMessages }) => {
+        if (isActive) {
+          setMessages(savedMessages);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load messages:', error);
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
 
     // Message handler
     const handleMessage = (message) => {
       if (isActive) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          if (prev.some((existing) => existing.id && existing.id === message.id)) {
+            return prev;
+          }
+
+          return [...prev, message];
+        });
         
-        if (message.sender !== username) {
+        if (message.senderId !== userId && message.sender !== username) {
           playNotificationSound();
+          socket.emit('message-status', { messageId: message.id, status: 'seen' });
         }
+      }
+    };
+
+    const handleMessageStatus = ({ messageId, status }) => {
+      if (isActive) {
+        setMessages((prev) => prev.map((message) => (
+          message.id === messageId ? { ...message, status } : message
+        )));
+      }
+    };
+
+    const handleMessagesSeen = () => {
+      if (isActive) {
+        setMessages((prev) => prev.map((message) => (
+          message.senderId === userId ? { ...message, status: 'seen' } : message
+        )));
       }
     };
 
@@ -82,6 +113,8 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
     socket.on('userCount', handleUserCount);
     socket.on('typing', handleTyping);
     socket.on('systemMessage', handleSystemMessage);
+    socket.on('message-status', handleMessageStatus);
+    socket.on('messages-seen', handleMessagesSeen);
 
     // Join room ONLY ONCE after listeners are set
     if (!hasJoined) {
@@ -91,11 +124,12 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
 
     return () => {
       isActive = false;
-      clearTimeout(loadingTimer);
       socket.off('message', handleMessage);
       socket.off('userCount', handleUserCount);
       socket.off('typing', handleTyping);
       socket.off('systemMessage', handleSystemMessage);
+      socket.off('message-status', handleMessageStatus);
+      socket.off('messages-seen', handleMessagesSeen);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -104,6 +138,7 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
     const message = {
       text,
       sender: username,
+      senderId: userId,
       timestamp: Date.now(),
     };
 
@@ -118,6 +153,7 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
       text,
       attachment,
       sender: username,
+      senderId: userId,
       timestamp: Date.now(),
     };
 
@@ -225,7 +261,7 @@ const Chat = ({ username, roomCode, onLeave, darkMode, toggleDarkMode }) => {
               
               return (
                 <MessageBubble
-                  key={index}
+                  key={msg.id || `${msg.sender}-${msg.timestamp}-${index}`}
                   message={msg}
                   isOwn={msg.sender === username}
                   darkMode={darkMode}

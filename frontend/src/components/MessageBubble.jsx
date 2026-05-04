@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Download, FileText } from 'lucide-react';
+import { Check, CheckCheck, Download, FileText } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
 
 const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
-  const { text, timestamp, sender, reactions = {}, attachment } = message;
+  const { text, timestamp, sender, reactions = {}, attachment, status } = message;
   const userColor = generateUserColor(sender);
   const initials = getInitials(sender);
   const [showReactions, setShowReactions] = useState(false);
@@ -129,8 +129,9 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
           {renderMessageContent()}
           
           {/* Timestamp */}
-          <span className={`text-[10px] sm:text-xs mt-1 block text-right opacity-70 ${isOwn ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
-            {formatTime(timestamp)}
+          <span className={`mt-1 flex items-center justify-end gap-1 text-[10px] sm:text-xs opacity-70 ${isOwn ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span>{formatTime(timestamp)}</span>
+            {isOwn && <MessageStatus status={status} />}
           </span>
         </div>
 
@@ -174,6 +175,18 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
       </div>
     </div>
   );
+};
+
+const MessageStatus = ({ status }) => {
+  if (status === 'seen') {
+    return <CheckCheck className="h-3.5 w-3.5 text-sky-500" />;
+  }
+
+  if (status === 'delivered') {
+    return <CheckCheck className="h-3.5 w-3.5" />;
+  }
+
+  return <Check className="h-3.5 w-3.5" />;
 };
 
 const AttachmentPreview = ({ attachment, isOwn }) => {

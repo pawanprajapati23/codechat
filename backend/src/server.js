@@ -1,6 +1,9 @@
+require('dotenv').config();
+
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -9,6 +12,14 @@ const rateLimit = require('express-rate-limit');
 const roomManager = require('./utils/roomManager');
 const messageHandler = require('./utils/messageHandler');
 const userManager = require('./utils/userManager');
+const connectDB = require('./config/db');
+const authRoutes = require('./routes/authRoutes');
+const messageRoutes = require('./routes/messageRoutes');
+const authenticateSocket = require('./utils/socketAuth');
+const User = require('./models/User');
+const Message = require('./models/Message');
+const Conversation = require('./models/Conversation');
+const { toClientMessage } = require('./controllers/messageController');
 
 const app = express();
 const httpServer = createServer(app);
@@ -61,6 +72,9 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', messageRoutes);
+
 app.get('/api/rooms', (req, res) => {
   res.json({ rooms: roomManager.getAllRooms() });
 });
@@ -82,58 +96,139 @@ app.post('/api/rooms', (req, res) => {
   res.json({ room });
 });
 
+io.use(authenticateSocket);
+
+const getMessageType = (message, attachment) => {
+  if (message.messageType) return message.messageType;
+  if (!attachment) return 'text';
+  if (attachment.type?.startsWith('image/')) return 'image';
+  if (attachment.type?.startsWith('audio/')) return 'audio';
+  return 'file';
+};
+
+const upsertConversation = async ({ roomCode, senderId, text, timestamp }) => {
+  let conversation = await Conversation.findOneAndUpdate(
+    { roomCode },
+    {
+      $addToSet: { participants: senderId },
+      $set: {
+        lastMessage: text || '[media]',
+        lastMessageTime: timestamp
+      }
+    },
+    { new: true, upsert: true }
+  );
+
+  const senderUnread = conversation.unreadCount.find((entry) => (
+    entry.userId.toString() === senderId.toString()
+  ));
+
+  if (!senderUnread) {
+    conversation.unreadCount.push({ userId: senderId, count: 0 });
+  }
+
+  conversation.unreadCount.forEach((entry) => {
+    if (entry.userId.toString() !== senderId.toString()) {
+      entry.count += 1;
+    }
+  });
+
+  await conversation.save();
+  return conversation;
+};
+
+const addConversationParticipant = async (roomCode, userId) => {
+  const conversation = await Conversation.findOneAndUpdate(
+    { roomCode },
+    { $addToSet: { participants: userId } },
+    { new: true, upsert: true }
+  );
+
+  const hasUnreadEntry = conversation.unreadCount.some((entry) => (
+    entry.userId.toString() === userId.toString()
+  ));
+
+  if (!hasUnreadEntry) {
+    conversation.unreadCount.push({ userId, count: 0 });
+    await conversation.save();
+  }
+
+  return conversation;
+};
+
+const getDirectConversationKey = (userIdA, userIdB) => (
+  `direct:${[userIdA.toString(), userIdB.toString()].sort().join(':')}`
+);
+
 // Socket.IO Connection Handling
 io.on('connection', (socket) => {
   console.log(`✅ User connected: ${socket.id}`);
   
-  let currentUser = null;
+  let currentUser = {
+    id: socket.user._id.toString(),
+    socketId: socket.id,
+    name: socket.user.username,
+    email: socket.user.email,
+    color: '#ff1744',
+    joinedAt: Date.now()
+  };
   let currentRoom = null;
 
+  User.findByIdAndUpdate(socket.user._id, {
+    isOnline: true,
+    lastSeen: new Date()
+  }).catch((error) => console.error('Online status error:', error));
+
+  socket.join(currentUser.id);
+
   // Join room - supports both 'join' and 'join-room' events
-  const handleJoin = ({ roomCode, userName, userId, username, color }) => {
+  const handleJoin = async ({ roomCode, color }) => {
     try {
-      const finalUsername = userName || username;
-      const finalUserId = userId || socket.id;
+      if (!roomCode) {
+        return socket.emit('error', { message: 'Room code is required' });
+      }
+
+      const normalizedRoomCode = roomCode.trim().toUpperCase();
       
       currentUser = {
-        id: finalUserId,
+        ...currentUser,
         socketId: socket.id,
-        name: finalUsername,
         color: color || '#ff1744',
         joinedAt: Date.now()
       };
-      currentRoom = roomCode;
+      currentRoom = normalizedRoomCode;
 
       // Join socket room
-      socket.join(roomCode);
+      socket.join(normalizedRoomCode);
 
       // Add user to room
-      roomManager.addUserToRoom(roomCode, currentUser);
+      roomManager.addUserToRoom(normalizedRoomCode, currentUser);
       userManager.addUser(currentUser);
+      await addConversationParticipant(normalizedRoomCode, socket.user._id);
 
       // Get room info
-      const room = roomManager.getRoom(roomCode);
+      const room = roomManager.getRoom(normalizedRoomCode);
 
       // Send system message to all users in room
-      io.to(roomCode).emit('systemMessage', {
-        text: `${finalUsername} joined the room`,
+      io.to(normalizedRoomCode).emit('systemMessage', {
+        text: `${currentUser.name} joined the room`,
         timestamp: Date.now()
       });
 
       // Send user count to all users in room
-      io.to(roomCode).emit('userCount', room.users.length);
+      io.to(normalizedRoomCode).emit('userCount', room.users.length);
 
       // Notify user (for backward compatibility)
       socket.emit('joined-room', {
         success: true,
         room: {
-          code: roomCode,
+          code: normalizedRoomCode,
           users: room.users,
           onlineCount: room.users.length
         }
       });
 
-      console.log(`👤 ${finalUsername} joined room: ${roomCode} (${room.users.length} users)`);
+      console.log(`👤 ${currentUser.name} joined room: ${normalizedRoomCode} (${room.users.length} users)`);
     } catch (error) {
       console.error('Join room error:', error);
       socket.emit('error', { message: 'Failed to join room' });
@@ -144,13 +239,28 @@ io.on('connection', (socket) => {
   socket.on('join-room', handleJoin);
 
   // Send message - supports both 'sendMessage' and 'send-message' events
-  const handleSendMessage = (data) => {
+  const handleSendMessage = async (data) => {
     try {
       const roomCode = data.roomCode;
       const message = data.message || data;
+      const normalizedRoomCode = roomCode?.trim().toUpperCase();
+      const receiverId = message.receiverId || data.receiverId || null;
+      const isDirectMessage = Boolean(receiverId);
       
-      const room = roomManager.getRoom(roomCode);
-      if (!room) {
+      if (!currentUser) {
+        return socket.emit('error', { message: 'Authentication required' });
+      }
+
+      if (isDirectMessage && !mongoose.Types.ObjectId.isValid(receiverId)) {
+        return socket.emit('error', { message: 'Invalid receiver' });
+      }
+
+      if (!isDirectMessage && (!normalizedRoomCode || currentRoom !== normalizedRoomCode)) {
+        return socket.emit('error', { message: 'Join the room before sending messages' });
+      }
+
+      const room = normalizedRoomCode ? roomManager.getRoom(normalizedRoomCode) : null;
+      if (!isDirectMessage && !room) {
         return socket.emit('error', { message: 'Room not found' });
       }
 
@@ -172,21 +282,63 @@ io.on('connection', (socket) => {
       }
 
       const messageData = {
-        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        sender: message.sender || currentUser?.name,
-        text: message.text || '',
+        senderId: socket.user._id,
+        receiverId,
+        roomCode: normalizedRoomCode || getDirectConversationKey(socket.user._id, receiverId),
+        message: message.text || '',
+        messageType: getMessageType(message, attachment),
+        mediaUrl: message.mediaUrl || attachment?.dataUrl || '',
         attachment,
-        timestamp: message.timestamp || Date.now(),
-        roomCode: roomCode
+        status: 'sent',
+        timestamp: message.timestamp ? new Date(message.timestamp) : new Date()
       };
 
-      // Save message
-      messageHandler.saveMessage(roomCode, messageData);
+      const savedMessage = await Message.create(messageData);
+      await savedMessage.populate('senderId', 'username email profilePic');
+      await upsertConversation({
+        roomCode: savedMessage.roomCode,
+        senderId: socket.user._id,
+        text: savedMessage.message,
+        timestamp: savedMessage.timestamp
+      });
+      if (normalizedRoomCode) {
+        roomManager.incrementMessageCount(normalizedRoomCode);
+      }
 
-      // Broadcast to ALL users in room (including sender)
-      io.to(roomCode).emit('message', messageData);
+      const clientMessage = toClientMessage(savedMessage);
+      clientMessage.sender = currentUser.name;
+      clientMessage.status = isDirectMessage || room.users.length > 1 ? 'delivered' : 'sent';
 
-      console.log(`💬 Message in ${roomCode}: ${message.text?.substring(0, 30) || '[media]'}`);
+      if (clientMessage.status === 'delivered') {
+        savedMessage.status = 'delivered';
+        await savedMessage.save();
+      }
+
+      // Keep legacy in-memory handlers populated for backward-compatible diagnostics.
+      messageHandler.saveMessage(savedMessage.roomCode, {
+        ...clientMessage,
+        sender: currentUser.name,
+        text: message.text || '',
+        timestamp: clientMessage.timestamp
+      });
+
+      if (isDirectMessage) {
+        socket.emit('message', clientMessage);
+        io.to(receiverId.toString()).emit('message', clientMessage);
+        io.to(receiverId.toString()).emit('message-status', {
+          messageId: clientMessage.id,
+          status: clientMessage.status
+        });
+      } else {
+        // Broadcast to ALL users in room (including sender)
+        io.to(normalizedRoomCode).emit('message', clientMessage);
+        socket.to(normalizedRoomCode).emit('message-status', {
+          messageId: clientMessage.id,
+          status: clientMessage.status
+        });
+      }
+
+      console.log(`💬 Message in ${savedMessage.roomCode}: ${message.text?.substring(0, 30) || '[media]'}`);
     } catch (error) {
       console.error('Send message error:', error);
       socket.emit('error', { message: 'Failed to send message' });
@@ -306,16 +458,51 @@ io.on('connection', (socket) => {
 
   // Get room messages
   socket.on('get-messages', ({ roomCode, limit = 50 }, callback) => {
-    try {
-      const messages = messageHandler.getMessages(roomCode, limit);
+    (async () => {
+      try {
+        const normalizedRoomCode = roomCode.trim().toUpperCase();
+        const messages = await Message.find({ roomCode: normalizedRoomCode })
+          .sort({ timestamp: 1 })
+          .limit(Math.min(Number(limit) || 50, 200))
+          .populate('senderId', 'username email profilePic');
+
+        await Message.updateMany(
+          { roomCode: normalizedRoomCode, senderId: { $ne: socket.user._id }, status: { $ne: 'seen' } },
+          { $set: { status: 'seen' } }
+        );
+
+        const clientMessages = messages.map(toClientMessage);
+
+        socket.to(normalizedRoomCode).emit('messages-seen', {
+          roomCode: normalizedRoomCode,
+          seenBy: socket.user._id.toString()
+        });
+
       if (callback) {
-        callback({ success: true, messages });
+          callback({ success: true, messages: clientMessages });
       }
-    } catch (error) {
-      console.error('Get messages error:', error);
+      } catch (error) {
+        console.error('Get messages error:', error);
       if (callback) {
         callback({ success: false, error: error.message });
       }
+      }
+    })();
+  });
+
+  socket.on('message-status', async ({ messageId, status }) => {
+    try {
+      if (!['sent', 'delivered', 'seen'].includes(status)) return;
+
+      const message = await Message.findByIdAndUpdate(messageId, { status }, { new: true });
+      if (!message) return;
+
+      io.to(message.roomCode).emit('message-status', {
+        messageId: message._id.toString(),
+        status
+      });
+    } catch (error) {
+      console.error('Message status error:', error);
     }
   });
 
@@ -370,6 +557,10 @@ io.on('connection', (socket) => {
 
       console.log(`👋 ${currentUser.name} disconnected from room: ${currentRoom}`);
     }
+    User.findByIdAndUpdate(socket.user._id, {
+      isOnline: false,
+      lastSeen: new Date()
+    }).catch((error) => console.error('Offline status error:', error));
     console.log(`❌ User disconnected: ${socket.id}`);
   });
 
@@ -394,8 +585,15 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`
+connectDB()
+  .catch(() => {
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  })
+  .finally(() => {
+    httpServer.listen(PORT, () => {
+      console.log(`
   ╔═══════════════════════════════════════╗
   ║   💕 CodeChat Love Backend Server   ║
   ║                                       ║
@@ -405,7 +603,8 @@ httpServer.listen(PORT, () => {
   ║   💖 Love theme activated             ║
   ╚═══════════════════════════════════════╝
   `);
-});
+    });
+  });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
