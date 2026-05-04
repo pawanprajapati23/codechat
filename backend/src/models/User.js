@@ -37,6 +37,15 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  securityQuestion: {
+    type: String,
+    required: false
+  },
+  securityAnswer: {
+    type: String,
+    required: false,
+    select: false
   }
 });
 
@@ -60,4 +69,3 @@ userSchema.methods.toSafeObject = function toSafeObject() {
 };
 
 module.exports = mongoose.model('User', userSchema);
-oose.model('User', userSchema);
