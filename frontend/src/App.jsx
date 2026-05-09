@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { initializeSocket, disconnectSocket } from './utils/socketConnection';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { getMe, logout as logoutApi } from './utils/api';
 import Join from './components/Join';
 import Chat from './components/Chat';
+import AdminDashboard from './components/AdminDashboard';
 
 function App() {
   const [isJoined, setIsJoined] = useState(false);
@@ -11,6 +13,7 @@ function App() {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [darkMode, setDarkMode] = useLocalStorage('darkMode', true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (darkMode) {
@@ -32,6 +35,9 @@ function App() {
       .then(({ user }) => {
         setAuthUser(user);
         initializeSocket(token);
+        if (user.role === 'admin') {
+          navigate('/admin');
+        }
       })
       .catch(() => {
         localStorage.removeItem('authToken');
@@ -40,7 +46,7 @@ function App() {
       .finally(() => setAuthLoading(false));
 
     return () => disconnectSocket();
-  }, []);
+  }, [navigate]);
 
   const handleJoin = ({ user, token, roomCode }) => {
     if (token) {
@@ -52,6 +58,12 @@ function App() {
     initializeSocket(token, user?.username);
     setUserData({ username: user.username, roomCode });
     setIsJoined(true);
+    
+    if (user?.role === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/chat');
+    }
   };
 
   const handleLeave = async ({ logout = false } = {}) => {
@@ -67,6 +79,9 @@ function App() {
       localStorage.removeItem('authToken');
       setAuthUser(null);
       disconnectSocket();
+      navigate('/');
+    } else {
+      navigate('/');
     }
   };
 
@@ -84,23 +99,53 @@ function App() {
 
   return (
     <div className="app">
-      {!isJoined ? (
-        <Join
-          onJoin={handleJoin}
-          authUser={authUser}
-          darkMode={darkMode}
-          toggleDarkMode={toggleDarkMode}
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            !isJoined ? (
+              <Join
+                onJoin={handleJoin}
+                authUser={authUser}
+                darkMode={darkMode}
+                toggleDarkMode={toggleDarkMode}
+              />
+            ) : (
+              <Navigate to={authUser?.role === 'admin' ? '/admin' : '/chat'} replace />
+            )
+          } 
         />
-      ) : (
-        <Chat
-          username={userData.username}
-          userId={authUser?._id}
-          roomCode={userData.roomCode}
-          onLeave={handleLeave}
-          darkMode={darkMode}
-          toggleDarkMode={toggleDarkMode}
+        
+        <Route 
+          path="/chat" 
+          element={
+            isJoined ? (
+              <Chat
+                username={userData?.username}
+                userId={authUser?._id}
+                roomCode={userData?.roomCode}
+                onLeave={handleLeave}
+                darkMode={darkMode}
+                toggleDarkMode={toggleDarkMode}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          } 
         />
-      )}
+
+        <Route 
+          path="/admin" 
+          element={
+            <AdminDashboard 
+              authUser={authUser} 
+              setAuthUser={setAuthUser}
+              darkMode={darkMode} 
+              toggleDarkMode={toggleDarkMode} 
+            />
+          } 
+        />
+      </Routes>
     </div>
   );
 }

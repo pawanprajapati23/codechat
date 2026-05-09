@@ -20,6 +20,7 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
   const [isLoading, setIsLoading] = useState(true);
   const [requestedCall, setRequestedCall] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const socket = getSocket();
   const typingTimeoutRef = useRef(null);
@@ -52,18 +53,31 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
     setIsLoading(true);
     setMessages([]);
 
-    getRoomMessages(activeRoom)
-      .then(({ messages: savedMessages }) => {
-        if (isActive) {
-          setMessages(savedMessages);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to load messages:', error);
-      })
-      .finally(() => {
-        if (isActive) setIsLoading(false);
-      });
+    const fetchMessages = () => {
+      getRoomMessages(activeRoom)
+        .then(({ messages: savedMessages }) => {
+          if (isActive) {
+            setMessages(savedMessages);
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to load messages:', error);
+        })
+        .finally(() => {
+          if (isActive) setIsLoading(false);
+        });
+    };
+
+    fetchMessages();
+
+    const handleReconnect = () => {
+      if (isActive) {
+        socket.emit('join', { username, roomCode: activeRoom });
+        fetchMessages();
+      }
+    };
+    
+    socket.on('connect', handleReconnect);
 
     const handleMessage = (message) => {
       if (isActive && message.roomCode === activeRoom) {
@@ -154,6 +168,7 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
 
     return () => {
       isActive = false;
+      socket.off('connect', handleReconnect);
       socket.off('message', handleMessage);
       socket.off('userCount', handleUserCount);
       socket.off('typing', handleTyping);
@@ -174,13 +189,28 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
   };
 
   const handleSendMessage = (text) => {
-    const message = { text, sender: username, senderId: userId, timestamp: Date.now() };
+    const message = { 
+      text, 
+      sender: username, 
+      senderId: userId, 
+      timestamp: Date.now(),
+      replyTo: replyingTo ? (replyingTo.id || replyingTo._id) : null
+    };
     socket.emit('sendMessage', { roomCode: activeRoom, message });
+    setReplyingTo(null);
   };
 
   const handleSendAttachment = (attachment, text = '') => {
-    const message = { text, attachment, sender: username, senderId: userId, timestamp: Date.now() };
+    const message = { 
+      text, 
+      attachment, 
+      sender: username, 
+      senderId: userId, 
+      timestamp: Date.now(),
+      replyTo: replyingTo ? (replyingTo.id || replyingTo._id) : null
+    };
     socket.emit('sendMessage', { roomCode: activeRoom, message });
+    setReplyingTo(null);
   };
 
   const handleTyping = () => {
@@ -363,6 +393,7 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
                     onReaction={handleReaction}
                     onEditMessage={handleEditMessage}
                     onDeleteMessage={handleDeleteMessage}
+                    onReplyMessage={setReplyingTo}
                   />
                 );
               })
@@ -380,6 +411,8 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
           onSendMessage={handleSendMessage}
           onSendAttachment={handleSendAttachment}
           onTyping={handleTyping}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
         />
       </div>
     </div>

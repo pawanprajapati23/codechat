@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Check, CheckCheck, Download, FileText, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Check, CheckCheck, Download, FileText, MoreVertical, Pencil, Trash2, Reply } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
 import { motion } from 'framer-motion';
 
-const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, onDeleteMessage }) => {
-  const { text, timestamp, sender, reactions = {}, attachment, status, isEdited, isDeleted, _id, id } = message;
+const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, onDeleteMessage, onReplyMessage }) => {
+  const { text, timestamp, sender, reactions = {}, attachment, status, isEdited, isDeleted, replyTo, _id, id } = message;
   const messageId = _id || id;
   const userColor = generateUserColor(sender);
   const initials = getInitials(sender);
@@ -168,9 +168,9 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
           </span>
         )}
 
-        <div className="flex items-center gap-1">
-          {/* Options Menu (Edit/Delete) */}
-          {isOwn && !isDeleted && (
+        <div className={`flex items-center gap-1 ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}>
+          {/* Options Menu (Edit/Delete/Reply) */}
+          {!isDeleted && (
             <div className={`relative opacity-0 group-hover:opacity-100 transition-opacity ${showOptions ? 'opacity-100' : ''}`}>
               <button 
                 onClick={() => setShowOptions(!showOptions)}
@@ -180,19 +180,29 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
               </button>
               
               {showOptions && (
-                <div className="absolute right-0 bottom-full mb-1 z-20 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-28 overflow-hidden">
+                <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} bottom-full mb-1 z-20 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-28 overflow-hidden`}>
                   <button 
-                    onClick={() => { setIsEditing(true); setShowOptions(false); }}
+                    onClick={() => { if(onReplyMessage) onReplyMessage(message); setShowOptions(false); }}
                     className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
                   >
-                    <Pencil size={14} /> Edit
+                    <Reply size={14} /> Reply
                   </button>
-                  <button 
-                    onClick={handleDelete}
-                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
-                  >
-                    <Trash2 size={14} /> Delete
-                  </button>
+                  {isOwn && (
+                    <>
+                      <button 
+                        onClick={() => { setIsEditing(true); setShowOptions(false); }}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                      >
+                        <Pencil size={14} /> Edit
+                      </button>
+                      <button 
+                        onClick={handleDelete}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -200,13 +210,20 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
 
           {/* Message Content */}
           <div
-            className={`rounded-2xl ${hasCodeBlock || isEditing ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-3.5 py-2'} shadow-sm ${
+            className={`rounded-2xl ${hasCodeBlock || isEditing ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-3.5 py-2'} shadow-sm flex flex-col ${
               isOwn
                 ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-gray-900 dark:text-[#e9edef] rounded-tr-sm'
                 : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-[#e9edef] rounded-tl-sm border border-transparent dark:border-transparent'
             } ${isDeleted ? 'bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700' : ''}`}
             onDoubleClick={() => !isDeleted && setShowReactions(!showReactions)}
           >
+            {replyTo && !isDeleted && (
+              <div className="mb-1 p-2 bg-black/5 dark:bg-black/20 rounded-md border-l-4 border-l-emerald-500 text-xs flex flex-col">
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{replyTo.sender}</span>
+                <span className="opacity-80 truncate">{replyTo.text || (replyTo.attachment ? 'Attachment' : 'Message')}</span>
+              </div>
+            )}
+            
             {renderMessageContent()}
             
             {/* Timestamp */}

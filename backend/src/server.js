@@ -321,6 +321,7 @@ io.on('connection', (socket) => {
         mediaUrl: message.mediaUrl || attachment?.dataUrl || '',
         attachment,
         status: 'sent',
+        replyTo: message.replyTo || null,
         timestamp: message.timestamp ? new Date(message.timestamp) : new Date()
       };
 
@@ -329,7 +330,10 @@ io.on('connection', (socket) => {
 
       if (!socket.user.isGuest) {
         const savedMessage = await Message.create(messageData);
-        await savedMessage.populate('senderId', 'username email profilePic');
+        await savedMessage.populate([
+          { path: 'senderId', select: 'username email profilePic' },
+          { path: 'replyTo', populate: { path: 'senderId', select: 'username' } }
+        ]);
         await upsertConversation({
           roomCode: savedMessage.roomCode,
           senderId: socket.user._id,
@@ -347,6 +351,7 @@ io.on('connection', (socket) => {
           mediaUrl: messageData.mediaUrl,
           attachment: messageData.attachment,
           status: 'sent',
+          replyTo: messageData.replyTo,
           timestamp: messageData.timestamp.toISOString(),
           senderId: socket.user._id.toString()
         };

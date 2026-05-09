@@ -50,6 +50,11 @@ const messageSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Message',
+    default: null
+  },
   timestamp: {
     type: Date,
 

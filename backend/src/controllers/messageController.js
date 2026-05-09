@@ -12,6 +12,14 @@ const toClientMessage = (message) => ({
   mediaUrl: message.mediaUrl,
   attachment: message.attachment?.dataUrl ? message.attachment : undefined,
   status: message.status,
+  isEdited: message.isEdited,
+  isDeleted: message.isDeleted,
+  replyTo: message.replyTo ? {
+    id: message.replyTo._id?.toString() || message.replyTo.toString(),
+    sender: message.replyTo.senderId?.username || 'Unknown',
+    text: message.replyTo.message,
+    attachment: message.replyTo.attachment
+  } : null,
   timestamp: new Date(message.timestamp).getTime(),
   roomCode: message.roomCode
 });
@@ -24,7 +32,11 @@ const getRoomMessages = async (req, res, next) => {
     const messages = await Message.find({ roomCode })
       .sort({ timestamp: 1 })
       .limit(limit)
-      .populate('senderId', 'username email profilePic');
+      .populate('senderId', 'username email profilePic')
+      .populate({
+        path: 'replyTo',
+        populate: { path: 'senderId', select: 'username' }
+      });
 
     await Message.updateMany(
       { roomCode, senderId: { $ne: req.user._id }, status: { $ne: 'seen' } },

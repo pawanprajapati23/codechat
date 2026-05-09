@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { ImagePlus, Paperclip, Send, Smile } from 'lucide-react';
+import { ImagePlus, Paperclip, Send, Smile, X, Reply } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 const MAX_ATTACHMENT_SIZE = 4 * 1024 * 1024;
 
-const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
+const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, onCancelReply }) => {
   const [message, setMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachment, setAttachment] = useState(null);
@@ -99,6 +99,27 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping }) => {
   return (
     <form onSubmit={handleSubmit} className="bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200 dark:border-[#2a3942] px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0 transition-colors">
       <div className="max-w-4xl mx-auto relative">
+        {replyingTo && (
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-[#2a3942] bg-gray-50 dark:bg-[#111b21] px-3 py-2 border-l-4 border-l-[#25d366]">
+            <div className="min-w-0 flex items-center gap-2">
+              <Reply className="w-4 h-4 text-[#25d366] flex-shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-[#25d366] truncate">{replyingTo.sender}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                  {replyingTo.text || (replyingTo.attachment ? 'Attachment' : 'Message')}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onCancelReply}
+              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {(attachment || fileError) && (
           <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-[#2a3942] bg-gray-50 dark:bg-[#111b21] px-3 py-2">
             <div className="min-w-0 flex items-center gap-2">
