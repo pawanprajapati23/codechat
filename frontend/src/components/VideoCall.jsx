@@ -440,7 +440,9 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   };
 
   const acceptIncomingCall = () => {
-    const type = incomingCall?.callType || 'video';
+    // If someone is sharing screen, we join as a normal video participant (receiver).
+    // We don't pass 'screen' here because that would trigger getDisplayMedia on our device.
+    const type = incomingCall?.callType === 'screen' ? 'video' : (incomingCall?.callType || 'video');
     setIncomingCall(null);
     startCall(type);
   };
@@ -461,7 +463,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                {incomingCall.callType === 'video' ? <Video className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
+                {incomingCall.callType === 'video' || incomingCall.callType === 'screen' ? <Video className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -491,7 +493,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
         <div className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 z-[60] sm:w-[min(92vw,420px)] sm:rounded-3xl border border-gray-200 dark:border-[#202c33] bg-gray-50 dark:bg-[#0b141a] shadow-2xl overflow-hidden transition-colors">
           <div className="relative min-h-[100dvh] sm:min-h-[520px] bg-black sm:bg-white sm:dark:bg-[#111b21] transition-colors">
             <div className="absolute inset-0">
-              {callType === 'video' && remoteStreams[0] ? (
+              {(callType === 'video' || callType === 'screen') && remoteStreams[0] ? (
                 <RemoteVideo stream={remoteStreams[0].stream} isAudioOnly={false} className="h-full w-full rounded-none" />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center bg-gray-100 dark:bg-[#111b21] text-gray-900 dark:text-white transition-colors">
@@ -504,7 +506,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
               )}
             </div>
 
-            {callType === 'video' && (
+            {(callType === 'video' || (callType === 'screen' && !isScreenSharing)) && (
               <div className="absolute right-3 top-4 h-36 w-24 overflow-hidden rounded-2xl border border-gray-300 dark:border-white/20 bg-gray-900 dark:bg-gray-950 shadow-xl sm:h-32 sm:w-24">
                 <video
                   ref={localVideoRef}
