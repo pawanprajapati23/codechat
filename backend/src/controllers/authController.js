@@ -12,7 +12,7 @@ const sendAuthResponse = (res, user, statusCode = 200) => {
 
 const signup = async (req, res, next) => {
   try {
-    const { username, email, password, profilePic } = req.body;
+    const { username, email, password, profilePic, securityQuestion, securityAnswer } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Username, email, and password are required' });
@@ -27,7 +27,9 @@ const signup = async (req, res, next) => {
       username,
       email,
       password,
-      profilePic
+      profilePic,
+      securityQuestion,
+      securityAnswer
     });
 
     sendAuthResponse(res, user, 201);
