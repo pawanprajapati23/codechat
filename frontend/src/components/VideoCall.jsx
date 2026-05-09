@@ -151,7 +151,25 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
 
   const answerOffer = useCallback(async ({ fromSocketId, offer, callType: incomingType }) => {
     const type = incomingType || callTypeRef.current;
-    await getLocalStream(type);
+    
+    // Logic fix: If someone is sharing screen, the receiver should NOT call getDisplayMedia.
+    // Receivers should only join with their default media (audio/video) or even no media.
+    // For now, let's join as a receiver without forcing screen share API on them.
+    if (type !== 'screen') {
+      await getLocalStream(type);
+    } else {
+      // For screen share receivers, we still might want them to send their audio/video
+      // or just join as a listener. Let's join as a video/audio receiver.
+      // This prevents the "not supported" error on mobile receivers.
+      if (!localStreamRef.current) {
+        try {
+          await getLocalStream('video'); // Join with camera if possible, or just skip if it fails
+        } catch {
+          // If camera fails (e.g. mobile doesn't support dual stream), just continue to receive
+        }
+      }
+    }
+
     callTypeRef.current = type;
     setCallType(type);
     isInCallRef.current = true;
