@@ -19,8 +19,9 @@ export const headerPropTypes = {
   roomCode: PropTypes.string.isRequired,
   userCount: PropTypes.number.isRequired,
   onLeave: PropTypes.func.isRequired,
-  darkMode: PropTypes.bool.isRequired,
-  toggleDarkMode: PropTypes.func.isRequired,
+  onStartCall: PropTypes.func.isRequired,
+  onOpenSidebar: PropTypes.func,
+  showSidebarBtn: PropTypes.bool,
 };
 
 export const messageBubblePropTypes = {

@@ -320,8 +320,6 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
           roomCode={activeRoom}
           userCount={userCount}
           onLeave={handleLeave}
-          darkMode={darkMode}
-          toggleDarkMode={toggleDarkMode}
           onStartCall={setRequestedCall}
           onOpenSidebar={() => setSidebarOpen(true)}
           showSidebarBtn={!isGuest && !sidebarOpen}

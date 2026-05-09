@@ -57,18 +57,30 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   }, [stopLocalStream]);
 
   const getLocalStream = useCallback(async (type) => {
-    if (localStreamRef.current) {
+    if (localStreamRef.current && type !== 'screen') {
       return localStreamRef.current;
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-      video: type === 'video' ? { facingMode: facingModeRef.current } : false,
-    });
+    let stream;
+    if (type === 'screen') {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      screenStreamRef.current = stream;
+      setIsScreenSharing(true);
+      
+      const [screenTrack] = stream.getVideoTracks();
+      screenTrack.onended = () => {
+        endCall(true);
+      };
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: type === 'video' ? { facingMode: facingModeRef.current } : false,
+      });
+    }
 
     localStreamRef.current = stream;
     if (localVideoRef.current) {
@@ -156,7 +168,12 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   }, [createPeer, getLocalStream, socket]);
 
   const startCall = useCallback(async (type) => {
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (type === 'screen' && !navigator.mediaDevices?.getDisplayMedia) {
+      setError('Screen sharing is not supported in this browser.');
+      return;
+    }
+    
+    if (type !== 'screen' && !navigator.mediaDevices?.getUserMedia) {
       setError('Audio and video calls are not supported in this browser.');
       return;
     }

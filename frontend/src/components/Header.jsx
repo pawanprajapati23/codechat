@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Check, Copy, LogOut, Moon, Phone, Sun, Users, Video, Menu } from 'lucide-react';
+import { Check, Copy, LogOut, Phone, Users, Video, Menu, MonitorUp } from 'lucide-react';
 import { copyToClipboard } from '../utils/helpers';
 import ShareRoom from './ShareRoom';
 
-const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStartCall, onOpenSidebar, showSidebarBtn }) => {
+const Header = ({ roomCode, userCount, onLeave, onStartCall, onOpenSidebar, showSidebarBtn }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -64,22 +64,18 @@ const Header = ({ roomCode, userCount, onLeave, darkMode, toggleDarkMode, onStar
             <Video className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
 
+          <button
+            onClick={() => onStartCall('screen')}
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
+            aria-label="Share screen"
+            title="Share screen"
+          >
+            <MonitorUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          </button>
+
           {/* Share Room */}
           <ShareRoom roomCode={roomCode} />
           
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
-            aria-label="Toggle dark mode"
-          >
-            {darkMode ? (
-              <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            ) : (
-              <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            )}
-          </button>
-
           {/* Leave Button */}
           <button
             onClick={onLeave}
