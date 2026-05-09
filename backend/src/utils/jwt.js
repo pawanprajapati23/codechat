@@ -10,7 +10,7 @@ const getJwtSecret = () => {
   return secret;
 };
 
-const signToken = (userId) => jwt.sign({ userId }, getJwtSecret(), {
+const signToken = (userId, role = 'user') => jwt.sign({ userId, role }, getJwtSecret(), {
   expiresIn: process.env.JWT_EXPIRES_IN || '7d'
 });
 

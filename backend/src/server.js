@@ -14,6 +14,7 @@ const messageHandler = require('./utils/messageHandler');
 const userManager = require('./utils/userManager');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const authenticateSocket = require('./utils/socketAuth');
 const User = require('./models/User');
@@ -71,8 +72,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
+// Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api', messageRoutes);
 
 app.get('/api/rooms', (req, res) => {

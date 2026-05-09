@@ -2,7 +2,7 @@ const User = require('../models/User');
 const { signToken } = require('../utils/jwt');
 
 const sendAuthResponse = (res, user, statusCode = 200) => {
-  const token = signToken(user._id);
+  const token = signToken(user._id, user.role);
 
   res.status(statusCode).json({
     token,
