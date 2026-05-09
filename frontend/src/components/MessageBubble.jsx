@@ -1,20 +1,64 @@
 import { useState } from 'react';
-import { Check, CheckCheck, Download, FileText } from 'lucide-react';
+import { Check, CheckCheck, Download, FileText, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
 import { motion } from 'framer-motion';
 
-const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
-  const { text, timestamp, sender, reactions = {}, attachment, status } = message;
+const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, onDeleteMessage }) => {
+  const { text, timestamp, sender, reactions = {}, attachment, status, isEdited, isDeleted, _id, id } = message;
+  const messageId = _id || id;
   const userColor = generateUserColor(sender);
   const initials = getInitials(sender);
   const [showReactions, setShowReactions] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(text || '');
 
   // Detect code blocks (```language\ncode\n```)
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-  const hasCodeBlock = codeBlockRegex.test(text);
+  const hasCodeBlock = codeBlockRegex.test(text || '');
+
+  const handleEditSubmit = () => {
+    if (editText.trim() !== text && onEditMessage && messageId) {
+      onEditMessage(messageId, editText.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (onDeleteMessage && messageId) {
+      onDeleteMessage(messageId);
+    }
+    setShowOptions(false);
+  };
 
   const renderMessageContent = () => {
+    if (isDeleted) {
+      return (
+        <p className="text-sm sm:text-base leading-relaxed italic opacity-70 flex items-center gap-1">
+          🚫 This message was deleted
+        </p>
+      );
+    }
+
+    if (isEditing) {
+      return (
+        <div className="flex flex-col gap-2 min-w-[200px]">
+          <textarea
+            className="text-sm sm:text-base w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            rows={2}
+            autoFocus
+          />
+          <div className="flex justify-end gap-2 mt-1">
+            <button onClick={() => { setIsEditing(false); setEditText(text || ''); }} className="text-xs bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Cancel</button>
+            <button onClick={handleEditSubmit} className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-full shadow-sm transition-colors">Save</button>
+          </div>
+        </div>
+      );
+    }
+
     const attachmentContent = attachment ? (
       <AttachmentPreview attachment={attachment} isOwn={isOwn} />
     ) : null;
@@ -106,6 +150,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={`flex items-end gap-2 mb-1.5 sm:mb-2 ${isOwn ? 'flex-row-reverse' : ''}`}
+      onMouseLeave={() => setShowOptions(false)}
     >
       {/* Avatar */}
       {!isOwn && (
@@ -123,22 +168,54 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction }) => {
           </span>
         )}
 
-        {/* Message Content */}
-        <div
-          className={`rounded-2xl ${hasCodeBlock ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-3.5 py-2'} shadow-sm ${
-            isOwn
-              ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-gray-900 dark:text-[#e9edef] rounded-tr-sm'
-              : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-[#e9edef] rounded-tl-sm border border-transparent dark:border-transparent'
-          }`}
-          onDoubleClick={() => setShowReactions(!showReactions)}
-        >
-          {renderMessageContent()}
-          
-          {/* Timestamp */}
-          <span className={`mt-1 flex items-center justify-end gap-1 text-[10px] sm:text-xs opacity-70 ${isOwn ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
-            <span>{formatTime(timestamp)}</span>
-            {isOwn && <MessageStatus status={status} />}
-          </span>
+        <div className="flex items-center gap-1">
+          {/* Options Menu (Edit/Delete) */}
+          {isOwn && !isDeleted && (
+            <div className={`relative opacity-0 group-hover:opacity-100 transition-opacity ${showOptions ? 'opacity-100' : ''}`}>
+              <button 
+                onClick={() => setShowOptions(!showOptions)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <MoreVertical size={16} />
+              </button>
+              
+              {showOptions && (
+                <div className="absolute right-0 bottom-full mb-1 z-20 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-28 overflow-hidden">
+                  <button 
+                    onClick={() => { setIsEditing(true); setShowOptions(false); }}
+                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                  >
+                    <Pencil size={14} /> Edit
+                  </button>
+                  <button 
+                    onClick={handleDelete}
+                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Message Content */}
+          <div
+            className={`rounded-2xl ${hasCodeBlock || isEditing ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-3.5 py-2'} shadow-sm ${
+              isOwn
+                ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-gray-900 dark:text-[#e9edef] rounded-tr-sm'
+                : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-[#e9edef] rounded-tl-sm border border-transparent dark:border-transparent'
+            } ${isDeleted ? 'bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700' : ''}`}
+            onDoubleClick={() => !isDeleted && setShowReactions(!showReactions)}
+          >
+            {renderMessageContent()}
+            
+            {/* Timestamp */}
+            <span className={`mt-1 flex items-center gap-1 text-[10px] sm:text-xs opacity-70 ${isOwn ? 'justify-end text-gray-700 dark:text-gray-200' : 'justify-start text-gray-500 dark:text-gray-400'}`}>
+              <span>{formatTime(timestamp)}</span>
+              {isEdited && !isDeleted && <span className="italic opacity-80">(edited)</span>}
+              {isOwn && !isDeleted && <MessageStatus status={status} />}
+            </span>
+          </div>
         </div>
 
         {/* Reaction Picker (shows on double-click) */}

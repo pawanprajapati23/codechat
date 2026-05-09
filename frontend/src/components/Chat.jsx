@@ -124,12 +124,30 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
       }
     };
 
+    const handleMessageEdited = (data) => {
+      if (isActive) {
+        setMessages((prev) => prev.map((msg) =>
+          msg._id === data.messageId ? { ...msg, message: data.newMessage, isEdited: data.isEdited } : msg
+        ));
+      }
+    };
+
+    const handleMessageDeleted = (data) => {
+      if (isActive) {
+        setMessages((prev) => prev.map((msg) =>
+          msg._id === data.messageId ? { ...msg, isDeleted: data.isDeleted } : msg
+        ));
+      }
+    };
+
     socket.on('message', handleMessage);
     socket.on('userCount', handleUserCount);
     socket.on('typing', handleTyping);
     socket.on('systemMessage', handleSystemMessage);
     socket.on('message-status', handleMessageStatus);
     socket.on('messages-seen', handleMessagesSeen);
+    socket.on('message-edited', handleMessageEdited);
+    socket.on('message-deleted', handleMessageDeleted);
 
     // Join room when activeRoom changes
     socket.emit('join', { username, roomCode: activeRoom });
@@ -142,8 +160,18 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
       socket.off('systemMessage', handleSystemMessage);
       socket.off('message-status', handleMessageStatus);
       socket.off('messages-seen', handleMessagesSeen);
+      socket.off('message-edited', handleMessageEdited);
+      socket.off('message-deleted', handleMessageDeleted);
     };
   }, [activeRoom, username, userId, socket, isGuest]);
+
+  const handleEditMessage = (messageId, newMessage) => {
+    socket.emit('edit-message', { roomCode: activeRoom, messageId, newMessage });
+  };
+
+  const handleDeleteMessage = (messageId) => {
+    socket.emit('delete-message', { roomCode: activeRoom, messageId });
+  };
 
   const handleSendMessage = (text) => {
     const message = { text, sender: username, senderId: userId, timestamp: Date.now() };
@@ -328,11 +356,13 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
                 
                 return (
                   <MessageBubble
-                    key={msg.id || `${msg.sender}-${msg.timestamp}-${index}`}
+                    key={msg.id || msg._id || `${msg.sender}-${msg.timestamp}-${index}`}
                     message={msg}
                     isOwn={msg.sender === username}
                     darkMode={darkMode}
                     onReaction={handleReaction}
+                    onEditMessage={handleEditMessage}
+                    onDeleteMessage={handleDeleteMessage}
                   />
                 );
               })

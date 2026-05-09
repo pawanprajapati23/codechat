@@ -25,15 +25,19 @@ export const headerPropTypes = {
 
 export const messageBubblePropTypes = {
   message: PropTypes.shape({
-    text: PropTypes.string.isRequired,
+    text: PropTypes.string,
     sender: PropTypes.string.isRequired,
     timestamp: PropTypes.number.isRequired,
     reactions: PropTypes.object,
     isSystem: PropTypes.bool,
+    isEdited: PropTypes.bool,
+    isDeleted: PropTypes.bool,
   }).isRequired,
   isOwn: PropTypes.bool.isRequired,
   darkMode: PropTypes.bool.isRequired,
   onReaction: PropTypes.func,
+  onEditMessage: PropTypes.func,
+  onDeleteMessage: PropTypes.func,
 };
 
 export const messageInputPropTypes = {

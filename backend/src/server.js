@@ -181,6 +181,8 @@ io.on('connection', (socket) => {
 
   socket.join(currentUser.id);
 
+  const RoomModel = require('./models/Room');
+
   // Join room - supports both 'join' and 'join-room' events
   const handleJoin = async ({ roomCode, color }) => {
     try {
@@ -190,6 +192,32 @@ io.on('connection', (socket) => {
 
       const normalizedRoomCode = roomCode.trim().toUpperCase();
       
+      // Look up or create Room in DB
+      let dbRoom = await RoomModel.findOne({ roomCode: normalizedRoomCode });
+      if (!dbRoom) {
+        // If not found, create a new private room (guest mode default)
+        dbRoom = await RoomModel.create({
+          roomCode: normalizedRoomCode,
+          type: socket.user.isGuest ? 'private' : 'group',
+          createdBy: socket.user.isGuest ? null : socket.user._id
+        });
+      }
+
+      const isPrivate = dbRoom.type === 'private';
+      const inMemoryRoom = roomManager.getRoom(normalizedRoomCode);
+      const currentUserCount = inMemoryRoom ? inMemoryRoom.users.length : 0;
+
+      // Strict 2-user limit for private rooms
+      if (isPrivate && currentUserCount >= 2 && (!inMemoryRoom.users.find(u => u.id === socket.user._id.toString() || u.id === socket.user.username))) {
+        return socket.emit('error', { message: 'This private room is full (max 2 users)' });
+      }
+
+      // Ensure user is in room members if authenticated
+      if (!socket.user.isGuest && !dbRoom.members.includes(socket.user._id)) {
+        dbRoom.members.push(socket.user._id);
+        await dbRoom.save();
+      }
+
       currentUser = {
         ...currentUser,
         socketId: socket.id,
@@ -224,7 +252,8 @@ io.on('connection', (socket) => {
         room: {
           code: normalizedRoomCode,
           users: room.users,
-          onlineCount: room.users.length
+          onlineCount: room.users.length,
+          type: dbRoom.type
         }
       });
 
@@ -365,6 +394,58 @@ io.on('connection', (socket) => {
 
   socket.on('sendMessage', handleSendMessage);
   socket.on('send-message', handleSendMessage);
+
+  // Edit message
+  const handleEditMessage = async (data) => {
+    try {
+      const { messageId, roomCode, newMessage } = data;
+      if (!currentUser) return;
+      
+      const msg = await Message.findById(messageId);
+      if (!msg) return;
+      if (msg.senderId.toString() !== currentUser.id) return;
+
+      msg.message = newMessage;
+      msg.isEdited = true;
+      await msg.save();
+
+      io.to(roomCode).emit('message-edited', {
+        messageId,
+        roomCode,
+        newMessage,
+        isEdited: true
+      });
+    } catch (error) {
+      console.error('Edit message error:', error);
+    }
+  };
+
+  socket.on('edit-message', handleEditMessage);
+
+  // Delete message
+  const handleDeleteMessage = async (data) => {
+    try {
+      const { messageId, roomCode } = data;
+      if (!currentUser) return;
+
+      const msg = await Message.findById(messageId);
+      if (!msg) return;
+      if (msg.senderId.toString() !== currentUser.id) return;
+
+      msg.isDeleted = true;
+      await msg.save();
+
+      io.to(roomCode).emit('message-deleted', {
+        messageId,
+        roomCode,
+        isDeleted: true
+      });
+    } catch (error) {
+      console.error('Delete message error:', error);
+    }
+  };
+
+  socket.on('delete-message', handleDeleteMessage);
 
   // Reaction - supports both 'reaction' and 'add-reaction' events
   const handleReaction = (data) => {

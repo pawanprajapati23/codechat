@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Phone, PhoneOff, SwitchCamera, User, Video, VideoOff, X } from 'lucide-react';
+import { Mic, MicOff, Phone, PhoneOff, SwitchCamera, User, Video, VideoOff, X, MonitorUp } from 'lucide-react';
 import { getSocket } from '../utils/socketConnection';
 
 const ICE_SERVERS = {
@@ -285,8 +285,90 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     setIsCameraOff((value) => !value);
   };
 
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const screenStreamRef = useRef(null);
+
+  const toggleScreenShare = async () => {
+    if (callType !== 'video') return;
+
+    try {
+      if (isScreenSharing) {
+        // Stop screen share, revert to camera
+        screenStreamRef.current?.getTracks().forEach(track => track.stop());
+        screenStreamRef.current = null;
+        
+        const nextFacingMode = facingModeRef.current;
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: nextFacingMode },
+          audio: false
+        });
+        
+        const [videoTrack] = stream.getVideoTracks();
+        
+        if (videoTrack) {
+          const [currentVideoTrack] = localStreamRef.current.getVideoTracks();
+          if (currentVideoTrack) {
+            localStreamRef.current.removeTrack(currentVideoTrack);
+            currentVideoTrack.stop();
+          }
+          localStreamRef.current.addTrack(videoTrack);
+
+          await Promise.all(Array.from(peersRef.current.values()).map(async (peer) => {
+            const sender = peer.getSenders().find((item) => item.track?.kind === 'video');
+            if (sender) {
+              await sender.replaceTrack(videoTrack);
+            }
+          }));
+
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStreamRef.current;
+          }
+        }
+
+        setIsScreenSharing(false);
+        setIsCameraOff(false);
+      } else {
+        // Start screen share
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = stream;
+
+        const [screenTrack] = stream.getVideoTracks();
+        
+        screenTrack.onended = () => {
+          if (isScreenSharing) {
+            toggleScreenShare(); // revert when user stops sharing via browser UI
+          }
+        };
+
+        const [currentVideoTrack] = localStreamRef.current.getVideoTracks();
+        if (currentVideoTrack) {
+          localStreamRef.current.removeTrack(currentVideoTrack);
+          currentVideoTrack.stop();
+        }
+        localStreamRef.current.addTrack(screenTrack);
+
+        await Promise.all(Array.from(peersRef.current.values()).map(async (peer) => {
+          const sender = peer.getSenders().find((item) => item.track?.kind === 'video');
+          if (sender) {
+            await sender.replaceTrack(screenTrack);
+          }
+        }));
+
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStreamRef.current;
+        }
+
+        setIsScreenSharing(true);
+        setIsCameraOff(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Could not share screen.');
+    }
+  };
+
   const switchCamera = async () => {
-    if (callType !== 'video' || !localStreamRef.current) return;
+    if (callType !== 'video' || !localStreamRef.current || isScreenSharing) return;
 
     const nextFacingMode = facingModeRef.current === 'user' ? 'environment' : 'user';
 
@@ -421,6 +503,9 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
                     </button>
                     <button onClick={toggleCamera} className={`p-3 rounded-full transition-colors ${isCameraOff ? 'bg-gray-200 text-gray-600 dark:bg-white/20 dark:text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-[#2a3942] dark:hover:bg-[#324650] dark:text-white'}`} aria-label={isCameraOff ? 'Turn camera on' : 'Turn camera off'}>
                       {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                    </button>
+                    <button onClick={toggleScreenShare} className={`p-3 rounded-full transition-colors ${isScreenSharing ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-[#2a3942] dark:hover:bg-[#324650] dark:text-white'}`} aria-label={isScreenSharing ? 'Stop screen sharing' : 'Share screen'}>
+                      <MonitorUp className="w-5 h-5" />
                     </button>
                   </>
                 )}
