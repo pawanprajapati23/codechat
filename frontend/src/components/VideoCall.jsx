@@ -3,7 +3,10 @@ import { Mic, MicOff, Phone, PhoneOff, SwitchCamera, User, Video, VideoOff, X, M
 import { getSocket } from '../utils/socketConnection';
 
 const ICE_SERVERS = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ],
 };
 
 const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
@@ -64,12 +67,15 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   }, [stopLocalStream]);
 
   const endCall = useCallback((notifyAll = false) => {
-    socket.emit(notifyAll ? 'call:end' : 'call:leave', { roomCode });
+    if (notifyAll) {
+      socket.emit('call:end', { roomCode });
+    } else {
+      socket.emit('call:leave', { roomCode });
+    }
     resetCall();
   }, [resetCall, roomCode, socket]);
 
   const getLocalStream = useCallback(async (type) => {
-    // If we already have a stream and it's not a request for a new screen stream
     if (localStreamRef.current && type !== 'screen') {
       return localStreamRef.current;
     }
@@ -83,10 +89,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
         
         const [screenTrack] = stream.getVideoTracks();
         screenTrack.onended = () => {
-          if (isInCallRef.current) {
-            // Instead of ending call, just stop sharing and revert to camera if possible
-            toggleScreenShare(); 
-          }
+          if (isInCallRef.current) toggleScreenShare(); 
         };
       } else {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -109,33 +112,28 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
   const toggleScreenShare = async () => {
     try {
       if (isScreenSharing) {
-        // Stop screen share
-        screenStreamRef.current?.getTracks().forEach(track => track.stop());
-        screenStreamRef.current = null;
-        
-        // Revert to camera
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: facingModeRef.current },
-          audio: false
+          audio: true
         });
         const [videoTrack] = stream.getVideoTracks();
         
         const [currentVideoTrack] = localStreamRef.current.getVideoTracks();
         if (currentVideoTrack) {
-          localStreamRef.current.removeTrack(currentVideoTrack);
           currentVideoTrack.stop();
+          localStreamRef.current.removeTrack(currentVideoTrack);
         }
         localStreamRef.current.addTrack(videoTrack);
 
-        await Promise.all(Array.from(peersRef.current.values()).map(async (peer) => {
-          const sender = peer.getSenders().find((item) => item.track?.kind === 'video');
+        for (const peer of peersRef.current.values()) {
+          const sender = peer.getSenders().find(s => s.track?.kind === 'video');
           if (sender) await sender.replaceTrack(videoTrack);
-        }));
+        }
 
+        screenStreamRef.current?.getTracks().forEach(t => t.stop());
+        screenStreamRef.current = null;
         setIsScreenSharing(false);
-        setIsCameraOff(false);
       } else {
-        // Start screen share
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         screenStreamRef.current = stream;
         const [screenTrack] = stream.getVideoTracks();
@@ -144,21 +142,20 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
 
         const [currentVideoTrack] = localStreamRef.current.getVideoTracks();
         if (currentVideoTrack) {
-          localStreamRef.current.removeTrack(currentVideoTrack);
           currentVideoTrack.stop();
+          localStreamRef.current.removeTrack(currentVideoTrack);
         }
         localStreamRef.current.addTrack(screenTrack);
 
-        await Promise.all(Array.from(peersRef.current.values()).map(async (peer) => {
-          const sender = peer.getSenders().find((item) => item.track?.kind === 'video');
+        for (const peer of peersRef.current.values()) {
+          const sender = peer.getSenders().find(s => s.track?.kind === 'video');
           if (sender) await sender.replaceTrack(screenTrack);
-        }));
+        }
 
         setIsScreenSharing(true);
-        setIsCameraOff(false);
       }
     } catch (err) {
-      setError('Could not toggle screen sharing.');
+      setError('Screen sharing failed.');
     }
   };
 
@@ -169,22 +166,23 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     const peer = new RTCPeerConnection(ICE_SERVERS);
     peersRef.current.set(targetSocketId, peer);
 
-    localStreamRef.current?.getTracks().forEach((track) => {
-      peer.addTrack(track, localStreamRef.current);
-    });
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        peer.addTrack(track, localStreamRef.current);
+      });
+    }
 
     peer.ontrack = (event) => {
       const [stream] = event.streams;
       setRemoteStreams((streams) => {
         const existingIndex = streams.findIndex((item) => item.socketId === targetSocketId);
-        const nextStream = { socketId: targetSocketId, stream };
-        if (existingIndex === -1) return [...streams, nextStream];
-        return streams.map((item, i) => (i === existingIndex ? nextStream : item));
+        if (existingIndex === -1) return [...streams, { socketId: targetSocketId, stream }];
+        return streams.map((item, i) => (i === existingIndex ? { socketId: targetSocketId, stream } : item));
       });
     };
 
     peer.onicecandidate = (event) => {
-      if (event.candidate) {
+      if (event.candidate && socket.connected) {
         socket.emit('call:ice-candidate', { targetSocketId, candidate: event.candidate });
       }
     };
@@ -195,25 +193,42 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
       }
     };
 
+    peer.onnegotiationneeded = async () => {
+      if (peer.signalingState !== 'stable') return;
+      try {
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        socket.emit('call:offer', {
+          targetSocketId,
+          offer,
+          roomCode,
+          callType: callTypeRef.current,
+        });
+      } catch (err) {
+        console.error('Negotiation error:', err);
+      }
+    };
+
     return peer;
-  }, [removePeer, socket]);
+  }, [removePeer, socket, roomCode]);
 
   const sendOffer = useCallback(async (targetSocketId) => {
     const peer = createPeer(targetSocketId);
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-    socket.emit('call:offer', {
-      targetSocketId,
-      offer,
-      roomCode,
-      callType: callTypeRef.current,
-    });
+    if (peer.signalingState === 'stable') {
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socket.emit('call:offer', {
+        targetSocketId,
+        offer,
+        roomCode,
+        callType: callTypeRef.current,
+      });
+    }
   }, [createPeer, roomCode, socket]);
 
   const answerOffer = useCallback(async ({ fromSocketId, offer, callType: incomingType }) => {
     const type = incomingType || callTypeRef.current;
     
-    // Receivers join with camera/audio only, never getDisplayMedia
     if (type !== 'screen') {
       await getLocalStream(type);
     } else if (!localStreamRef.current) {
@@ -222,18 +237,24 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
 
     callTypeRef.current = type;
     setCallType(type);
-    isInCallRef.current = true;
     setIsInCall(true);
+    isInCallRef.current = true;
 
     const peer = createPeer(fromSocketId);
-    await peer.setRemoteDescription(new RTCSessionDescription(offer));
-    const queuedCandidates = pendingIceCandidatesRef.current.get(fromSocketId) || [];
-    await Promise.all(queuedCandidates.map((c) => peer.addIceCandidate(new RTCIceCandidate(c))));
-    pendingIceCandidatesRef.current.delete(fromSocketId);
-    
-    const answer = await peer.createAnswer();
-    await peer.setLocalDescription(answer);
-    socket.emit('call:answer', { targetSocketId: fromSocketId, answer });
+    try {
+      await peer.setRemoteDescription(new RTCSessionDescription(offer));
+      const candidates = pendingIceCandidatesRef.current.get(fromSocketId) || [];
+      for (const candidate of candidates) {
+        await peer.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error(e));
+      }
+      pendingIceCandidatesRef.current.delete(fromSocketId);
+      
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      socket.emit('call:answer', { targetSocketId: fromSocketId, answer });
+    } catch (err) {
+      console.error('Answer offer error:', err);
+    }
   }, [createPeer, getLocalStream, socket]);
 
   const startCall = useCallback(async (type) => {
@@ -246,15 +267,15 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
       await getLocalStream(type);
       callTypeRef.current = type;
       setCallType(type);
-      isInCallRef.current = true;
       setIsInCall(true);
+      isInCallRef.current = true;
       socket.emit('call:join', { roomCode, callType: type });
 
       const pendingOffers = pendingOffersRef.current;
       pendingOffersRef.current = [];
       await Promise.all(pendingOffers.map((offer) => answerOffer(offer)));
     } catch (err) {
-      setError('Could not start the call.');
+      setError('Could not start call.');
       resetCall();
     }
   }, [answerOffer, getLocalStream, resetCall, roomCode, socket]);
@@ -303,7 +324,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     const handleIceCandidate = async ({ fromSocketId, candidate }) => {
       const peer = peersRef.current.get(fromSocketId);
       if (peer?.remoteDescription) {
-        await peer.addIceCandidate(new RTCIceCandidate(candidate));
+        await peer.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error(e));
       } else {
         const queued = pendingIceCandidatesRef.current.get(fromSocketId) || [];
         pendingIceCandidatesRef.current.set(fromSocketId, [...queued, candidate]);
@@ -392,7 +413,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
             </div>
           </div>
 
-          {/* Main Stage (Shared Screen or Dominant Video) */}
+          {/* Main Stage */}
           <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-[#000]">
             {(callType === 'screen' || remoteStreams.length > 0) ? (
               <div className="w-full h-full max-w-6xl relative group rounded-2xl overflow-hidden shadow-2xl border border-[#333]">
@@ -419,16 +440,14 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
             )}
           </div>
 
-          {/* Participants Sidebar/Bottom Bar */}
+          {/* Participants bar */}
           <div className="h-28 sm:h-32 bg-[#1a1a1a] border-t border-[#333] flex items-center gap-4 px-6 overflow-x-auto no-scrollbar">
-            {/* Self Preview */}
             <div className="relative h-20 sm:h-24 aspect-video rounded-xl overflow-hidden border-2 border-emerald-500/50 bg-[#222] shrink-0">
               <video ref={localVideoRef} autoPlay muted playsInline className={`w-full h-full object-cover ${isCameraOff ? 'hidden' : ''}`} />
               {isCameraOff && <div className="w-full h-full flex items-center justify-center text-gray-600"><User size={20}/></div>}
               <div className="absolute bottom-1 left-2 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-white font-medium">You {isScreenSharing && '(Presenting)'}</div>
             </div>
 
-            {/* Remote Participants */}
             {remoteStreams.slice(1).map(({ socketId, stream }) => (
               <div key={socketId} className="relative h-20 sm:h-24 aspect-video rounded-xl overflow-hidden border border-[#333] bg-[#222] shrink-0">
                 <RemoteVideo stream={stream} isAudioOnly={callType === 'audio'} className="w-full h-full object-cover" />
@@ -460,7 +479,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
 
       {/* Error Toast */}
       {error && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[120] px-6 py-3 rounded-xl bg-red-500 text-white font-bold shadow-2xl animate-bounce">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[120] px-6 py-3 rounded-xl bg-red-500 text-white font-bold shadow-2xl">
           {error}
         </div>
       )}
