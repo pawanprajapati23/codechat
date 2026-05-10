@@ -5,8 +5,18 @@ import { getSocket } from '../utils/socketConnection';
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
   ],
+};
+
+// Bandwidth optimization: Default constraints
+const VIDEO_CONSTRAINTS = {
+  width: { ideal: 640, max: 1280 },
+  height: { ideal: 480, max: 720 },
+  frameRate: { ideal: 15, max: 24 }
 };
 
 const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
@@ -94,7 +104,7 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
       } else {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true },
-          video: type === 'video' ? { facingMode: facingModeRef.current } : false,
+          video: type === 'video' ? { ...VIDEO_CONSTRAINTS, facingMode: facingModeRef.current } : false,
         });
       }
 
@@ -190,6 +200,12 @@ const VideoCall = ({ roomCode, username, requestedCall, onRequestHandled }) => {
     peer.onconnectionstatechange = () => {
       if (['closed', 'disconnected', 'failed'].includes(peer.connectionState)) {
         removePeer(targetSocketId);
+      }
+    };
+
+    peer.oniceconnectionstatechange = () => {
+      if (peer.iceConnectionState === 'failed') {
+        peer.restartIce();
       }
     };
 
