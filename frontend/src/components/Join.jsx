@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { generateRoomCode, copyToClipboard } from '../utils/helpers';
-import { login, signup, forgotPassword, resetPassword } from '../utils/api';
+import { login, signup, forgotPassword, resetPassword, logout } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Join = ({ onJoin, authUser }) => {
@@ -116,6 +116,17 @@ const Join = ({ onJoin, authUser }) => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      // Ignore
+    } finally {
+      localStorage.removeItem('authToken');
+      window.location.reload();
+    }
+  };
+
   const openAuth = (authMode) => {
     setMode(authMode);
     setErrors({});
@@ -165,7 +176,15 @@ const Join = ({ onJoin, authUser }) => {
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 font-medium">Lightning fast, perfectly smooth.</p>
 
           {authUser ? (
-            <div className="bg-white/50 dark:bg-gray-800/50 rounded-2xl p-5 mb-8 border border-indigo-100 dark:border-gray-700/50 backdrop-blur-sm">
+            <div className="bg-white/50 dark:bg-gray-800/50 rounded-2xl p-5 mb-8 border border-indigo-100 dark:border-gray-700/50 backdrop-blur-sm relative group">
+              <button 
+                onClick={handleLogout}
+                className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
+                title="Logout"
+              >
+                <span className="text-[10px] font-bold uppercase hidden group-hover:block transition-all">Logout</span>
+                <X size={14} />
+              </button>
               <p className="font-semibold text-lg text-gray-900 dark:text-gray-100">Welcome back, <span className="text-indigo-600 dark:text-indigo-400">{authUser.username}</span>!</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter a Room PIN to connect instantly</p>
             </div>
