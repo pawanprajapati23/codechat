@@ -43,23 +43,19 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
-  securityQuestion: {
+  resetPasswordCode: {
     type: String,
     required: false
   },
-  securityAnswer: {
-    type: String,
-    required: false,
-    select: false
+  resetPasswordExpires: {
+    type: Date,
+    required: false
   }
 });
 
 userSchema.pre('save', async function hashPassword() {
   if (this.isModified('password')) {
     this.password = await bcrypt.hash(this.password, 12);
-  }
-  if (this.isModified('securityAnswer')) {
-    this.securityAnswer = await bcrypt.hash(this.securityAnswer, 12);
   }
 });
 

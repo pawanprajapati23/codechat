@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion, Sparkles } from 'lucide-react';
 import { generateRoomCode, copyToClipboard } from '../utils/helpers';
-import { login, signup, getQuestion, resetPassword } from '../utils/api';
+import { login, signup, forgotPassword, resetPassword } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Join = ({ onJoin, authUser }) => {
@@ -13,17 +13,8 @@ const Join = ({ onJoin, authUser }) => {
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [securityQuestion, setSecurityQuestion] = useState('');
-  const [securityAnswer, setSecurityAnswer] = useState('');
+  const [resetCode, setResetCode] = useState('');
   const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
-  const [retrievedQuestion, setRetrievedQuestion] = useState('');
-
-  const securityQuestions = [
-    "What is your mother's maiden name?",
-    "What was the name of your first pet?",
-    "What city were you born in?",
-    "What is your favorite book?"
-  ];
 
   useEffect(() => {
     // Focus username input on mount if guest
@@ -58,16 +49,12 @@ const Join = ({ onJoin, authUser }) => {
       if (mode === 'signup' && !username.trim()) newErrors.username = 'Please enter your name';
       if (!email.trim()) newErrors.email = 'Email is required';
       if (!password) newErrors.password = 'Password is required';
-      if (mode === 'signup') {
-        if (!securityQuestion) newErrors.securityQuestion = 'Please select a security question';
-        if (!securityAnswer.trim()) newErrors.securityAnswer = 'Security answer is required';
-      }
     }
 
     if (mode === 'forgot') {
       if (!email.trim()) newErrors.email = 'Email is required';
       if (forgotPasswordStep === 2) {
-        if (!securityAnswer.trim()) newErrors.securityAnswer = 'Security answer is required';
+        if (!resetCode.trim()) newErrors.resetCode = 'Reset code is required';
         if (!password) newErrors.password = 'New password is required';
       }
     }
@@ -102,20 +89,20 @@ const Join = ({ onJoin, authUser }) => {
         });
       } else if (mode === 'forgot') {
         if (forgotPasswordStep === 1) {
-          const res = await getQuestion({ email: email.trim() });
-          setRetrievedQuestion(res.question);
+          const res = await forgotPassword({ email: email.trim() });
+          alert(res.message);
           setForgotPasswordStep(2);
         } else {
-          await resetPassword({ email: email.trim(), securityAnswer: securityAnswer.trim(), newPassword: password });
+          await resetPassword({ email: email.trim(), code: resetCode.trim(), newPassword: password });
           setMode('login');
           setForgotPasswordStep(1);
-          setSecurityAnswer('');
+          setResetCode('');
           setPassword('');
           alert('Password reset successfully. Please login.');
         }
       } else {
         const auth = mode === 'signup' 
-          ? await signup({ username: username.trim(), email: email.trim(), password, securityQuestion, securityAnswer: securityAnswer.trim() })
+          ? await signup({ username: username.trim(), email: email.trim(), password })
           : await login({ email: email.trim(), password });
         
         localStorage.setItem('authToken', auth.token);
@@ -315,7 +302,7 @@ const Join = ({ onJoin, authUser }) => {
                   {mode === 'login' ? 'Welcome Back' : mode === 'forgot' ? 'Reset Password' : 'Create Account'}
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  {mode === 'login' ? 'Enter your details to access your chats.' : mode === 'forgot' ? 'Answer your security question to reset.' : 'Join the conversation today.'}
+                  {mode === 'login' ? 'Enter your details to access your chats.' : mode === 'forgot' ? 'We will send a 6-digit code to your email.' : 'Join the conversation today.'}
                 </p>
               </div>
 
@@ -386,49 +373,26 @@ const Join = ({ onJoin, authUser }) => {
                   </div>
                 )}
 
-                {(mode === 'signup' || (mode === 'forgot' && forgotPasswordStep === 2)) && (
+                {(mode === 'forgot' && forgotPasswordStep === 2) && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                    {mode === 'forgot' && (
-                      <div className="p-4 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-                        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-1">Security Question</p>
-                        <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">{retrievedQuestion}</p>
-                      </div>
-                    )}
-                    
-                    {mode === 'signup' && (
-                      <div>
-                        <div className="relative">
-                          <ShieldQuestion className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5 pointer-events-none" />
-                          <select
-                            value={securityQuestion}
-                            onChange={(e) => setSecurityQuestion(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-10 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none"
-                          >
-                            <option value="" disabled>Select a security question</option>
-                            {securityQuestions.map((q, i) => (
-                              <option key={i} value={q}>{q}</option>
-                            ))}
-                          </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                          </div>
-                        </div>
-                        {errors.securityQuestion && <p className="text-red-500 text-xs mt-1 ml-1">{errors.securityQuestion}</p>}
-                      </div>
-                    )}
+                    <div className="p-4 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+                      <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-1">Enter Reset Code</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Check your email for the 6-digit code we just sent.</p>
+                    </div>
 
                     <div>
                       <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                        <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
                         <input
                           type="text"
-                          value={securityAnswer}
-                          onChange={(e) => setSecurityAnswer(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                          placeholder="Your answer"
+                          value={resetCode}
+                          onChange={(e) => setResetCode(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono tracking-widest uppercase"
+                          placeholder="6-DIGIT CODE"
+                          maxLength={6}
                         />
                       </div>
-                      {errors.securityAnswer && <p className="text-red-500 text-xs mt-1 ml-1">{errors.securityAnswer}</p>}
+                      {errors.resetCode && <p className="text-red-500 text-xs mt-1 ml-1">{errors.resetCode}</p>}
                     </div>
                   </motion.div>
                 )}
@@ -438,7 +402,7 @@ const Join = ({ onJoin, authUser }) => {
                   disabled={isSubmitting}
                   className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 transition-all mt-6 active:scale-[0.98]"
                 >
-                  {isSubmitting ? 'Please wait...' : (mode === 'login' ? 'Sign In' : mode === 'forgot' ? (forgotPasswordStep === 1 ? 'Get Question' : 'Reset Password') : 'Create Account')}
+                  {isSubmitting ? 'Please wait...' : (mode === 'login' ? 'Sign In' : mode === 'forgot' ? (forgotPasswordStep === 1 ? 'Send Reset Code' : 'Reset Password') : 'Create Account')}
                 </button>
               </form>
 

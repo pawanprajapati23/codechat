@@ -1,5 +1,9 @@
 const User = require('../models/User');
 const { signToken } = require('../utils/jwt');
+const { Resend } = require('resend');
+
+// Only initialize if the key exists to prevent crashing if someone doesn't configure it
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const sendAuthResponse = (res, user, statusCode = 200) => {
   const token = signToken(user._id, user.role);
@@ -12,7 +16,7 @@ const sendAuthResponse = (res, user, statusCode = 200) => {
 
 const signup = async (req, res, next) => {
   try {
-    const { username, email, password, profilePic, securityQuestion, securityAnswer } = req.body;
+    const { username, email, password, profilePic } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Username, email, and password are required' });
@@ -25,12 +29,23 @@ const signup = async (req, res, next) => {
 
     const user = await User.create({
       username,
-      email,
+      email: email.toLowerCase(),
       password,
-      profilePic,
-      securityQuestion,
-      securityAnswer
+      profilePic
     });
+
+    if (resend) {
+      try {
+        await resend.emails.send({
+          from: 'CodeChat <onboarding@resend.dev>',
+          to: user.email,
+          subject: 'Welcome to CodeChat!',
+          html: `<h1>Welcome ${user.username}!</h1><p>Thanks for joining CodeChat. We hope you enjoy chatting.</p>`
+        });
+      } catch (emailErr) {
+        console.error('Welcome email failed:', emailErr);
+      }
+    }
 
     sendAuthResponse(res, user, 201);
   } catch (error) {
@@ -72,23 +87,39 @@ const logout = async (req, res, next) => {
   }
 };
 
-const getQuestion = async (req, res, next) => {
+const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
+    if (!email) return res.status(400).json({ error: 'Email is required' });
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      // Don't leak if email exists, just pretend it succeeded
+      return res.json({ success: true, message: 'If the email exists, a reset code was sent.' });
     }
 
-    if (!user.securityQuestion) {
-      return res.status(400).json({ error: 'No security question is set for this user' });
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
+    user.resetPasswordCode = resetCode;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins expiry
+    await user.save();
+
+    if (resend) {
+      try {
+        await resend.emails.send({
+          from: 'CodeChat <onboarding@resend.dev>',
+          to: user.email,
+          subject: 'Your Password Reset Code',
+          html: `<p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p>`
+        });
+      } catch (err) {
+        console.error('Email send error:', err);
+        return res.status(500).json({ error: 'Failed to send reset email' });
+      }
+    } else {
+      return res.status(500).json({ error: 'Email service is not configured' });
     }
 
-    res.json({ question: user.securityQuestion });
+    res.json({ success: true, message: 'Reset code sent to email' });
   } catch (error) {
     next(error);
   }
@@ -96,28 +127,25 @@ const getQuestion = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
   try {
-    const { email, securityAnswer, newPassword } = req.body;
+    const { email, code, newPassword } = req.body;
     
-    if (!email || !securityAnswer || !newPassword) {
-      return res.status(400).json({ error: 'Email, security answer, and new password are required' });
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: 'Email, code, and new password are required' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+securityAnswer');
+    const user = await User.findOne({ 
+      email: email.toLowerCase(),
+      resetPasswordCode: code,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (!user.securityAnswer) {
-      return res.status(400).json({ error: 'No security answer is set for this user' });
-    }
-
-    const bcrypt = require('bcrypt');
-    const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Incorrect security answer' });
+      return res.status(400).json({ error: 'Invalid or expired reset code' });
     }
 
     user.password = newPassword;
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
     await user.save();
 
     res.json({ success: true, message: 'Password reset successfully' });
@@ -131,6 +159,6 @@ module.exports = {
   login,
   me,
   logout,
-  getQuestion,
+  forgotPassword,
   resetPassword
 };
