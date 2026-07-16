@@ -372,27 +372,46 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
               </div>
             ) : (
               messages.map((msg, index) => {
-                if (msg.isSystem) {
-                  return (
-                    <div key={index} className="flex justify-center py-2">
-                      <span className="text-xs text-gray-600 dark:text-[#8696a0] bg-white/60 dark:bg-[#202c33]/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm">
-                        {msg.text}
-                      </span>
-                    </div>
-                  );
+                const messageDate = new Date(msg.timestamp).toLocaleDateString();
+                const previousMessageDate = index > 0 ? new Date(messages[index - 1].timestamp).toLocaleDateString() : null;
+                const showDateSeparator = messageDate !== previousMessageDate;
+
+                let dateText = messageDate;
+                const today = new Date().toLocaleDateString();
+                const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
+                if (messageDate === today) dateText = 'Today';
+                else if (messageDate === yesterday) dateText = 'Yesterday';
+                else {
+                  dateText = new Date(msg.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
                 }
-                
+
                 return (
-                  <MessageBubble
-                    key={msg.id || msg._id || `${msg.sender}-${msg.timestamp}-${index}`}
-                    message={msg}
-                    isOwn={msg.sender === username}
-                    darkMode={darkMode}
-                    onReaction={handleReaction}
-                    onEditMessage={handleEditMessage}
-                    onDeleteMessage={handleDeleteMessage}
-                    onReplyMessage={setReplyingTo}
-                  />
+                  <div key={msg.id || msg._id || `${msg.sender}-${msg.timestamp}-${index}`}>
+                    {showDateSeparator && (
+                      <div className="flex justify-center my-4">
+                        <span className="text-[11px] sm:text-xs font-medium text-gray-600 dark:text-[#8696a0] bg-[#e1f3fb] dark:bg-[#182229] px-3 py-1 rounded-lg shadow-sm">
+                          {dateText}
+                        </span>
+                      </div>
+                    )}
+                    {msg.isSystem ? (
+                      <div className="flex justify-center py-2">
+                        <span className="text-xs text-gray-600 dark:text-[#8696a0] bg-[#e1f3fb] dark:bg-[#182229] px-4 py-1.5 rounded-lg shadow-sm text-center max-w-[85%]">
+                          {msg.text}
+                        </span>
+                      </div>
+                    ) : (
+                      <MessageBubble
+                        message={msg}
+                        isOwn={msg.sender === username}
+                        darkMode={darkMode}
+                        onReaction={handleReaction}
+                        onEditMessage={handleEditMessage}
+                        onDeleteMessage={handleDeleteMessage}
+                        onReplyMessage={setReplyingTo}
+                      />
+                    )}
+                  </div>
                 );
               })
             )}

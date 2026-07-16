@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, CheckCheck, Download, FileText, MoreVertical, Pencil, Trash2, Reply } from 'lucide-react';
+import { Check, CheckCheck, Download, FileText, MoreVertical, Pencil, Trash2, Reply, X } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
 import { motion } from 'framer-motion';
@@ -30,6 +30,27 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
       onDeleteMessage(messageId);
     }
     setShowOptions(false);
+  };
+
+  const renderTextWithLinks = (textContent) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return textContent.split(urlRegex).map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a 
+            key={index} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-blue-500 dark:text-blue-400 hover:underline break-words"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
   };
 
   const renderMessageContent = () => {
@@ -69,7 +90,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
           {attachmentContent}
           {text && (
             <p className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
-              {text}
+              {renderTextWithLinks(text)}
             </p>
           )}
         </>
@@ -125,7 +146,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
           }
           return (
             <p key={index} className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
-              {part.content}
+              {renderTextWithLinks(part.content)}
             </p>
           );
         })}
@@ -149,8 +170,18 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`flex items-end gap-2 mb-1.5 sm:mb-2 ${isOwn ? 'flex-row-reverse' : ''}`}
+      className={`flex items-end gap-2 mb-1.5 sm:mb-2 w-full ${isOwn ? 'flex-row-reverse' : ''}`}
       onMouseLeave={() => setShowOptions(false)}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.15}
+      dragDirectionLock
+      onDragEnd={(e, info) => {
+        if (!onReplyMessage) return;
+        if (info.offset.x > 50 || info.offset.x < -50) {
+          onReplyMessage(message);
+        }
+      }}
     >
       {/* Avatar */}
       {!isOwn && (
@@ -291,22 +322,40 @@ const MessageStatus = ({ status }) => {
 
 const AttachmentPreview = ({ attachment, isOwn }) => {
   const sizeInMb = attachment.size ? `${(attachment.size / (1024 * 1024)).toFixed(2)} MB` : '';
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   if (attachment.type?.startsWith('image/')) {
     return (
-      <a
-        href={attachment.dataUrl}
-        download={attachment.name}
-        target="_blank"
-        rel="noreferrer"
-        className="mb-2 block overflow-hidden rounded-xl border border-white/20 bg-black/10"
-      >
-        <img
-          src={attachment.dataUrl}
-          alt={attachment.name}
-          className="max-h-72 w-full object-contain"
-        />
-      </a>
+      <>
+        <div
+          onClick={() => setIsFullscreen(true)}
+          className="mb-2 block overflow-hidden rounded-xl bg-black/10 cursor-pointer"
+        >
+          <img
+            src={attachment.dataUrl}
+            alt={attachment.name}
+            className="max-h-72 w-full object-contain"
+          />
+        </div>
+        {isFullscreen && (
+          <div 
+            className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-2"
+            onClick={() => setIsFullscreen(false)}
+          >
+            <button 
+              className="absolute top-4 right-4 text-white p-2 bg-black/50 rounded-full"
+              onClick={() => setIsFullscreen(false)}
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={attachment.dataUrl}
+              alt={attachment.name}
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+        )}
+      </>
     );
   }
 
