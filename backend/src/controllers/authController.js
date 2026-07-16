@@ -5,6 +5,8 @@ const { Resend } = require('resend');
 // Only initialize if the key exists to prevent crashing if someone doesn't configure it
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
+const otpStore = new Map(); // email -> { code, expires, verified }
+
 const sendAuthResponse = (res, user, statusCode = 200) => {
   const token = signToken(user._id, user.role);
 
@@ -22,17 +24,26 @@ const signup = async (req, res, next) => {
       return res.status(400).json({ error: 'Username, email, and password are required' });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const emailLower = email.toLowerCase();
+
+    const otpRecord = otpStore.get(emailLower);
+    if (!otpRecord || !otpRecord.verified) {
+      return res.status(400).json({ error: 'Please verify your email first' });
+    }
+
+    const existingUser = await User.findOne({ email: emailLower });
     if (existingUser) {
       return res.status(409).json({ error: 'Email is already registered' });
     }
 
     const user = await User.create({
       username,
-      email: email.toLowerCase(),
+      email: emailLower,
       password,
       profilePic
     });
+
+    otpStore.delete(emailLower);
 
     if (resend) {
       try {
@@ -154,11 +165,76 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+const sendOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const emailLower = email.toLowerCase();
+    const existingUser = await User.findOne({ email: emailLower });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Email is already registered' });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(emailLower, {
+      code,
+      expires: Date.now() + 10 * 60 * 1000,
+      verified: false
+    });
+
+    if (resend) {
+      try {
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'CodeChat <onboarding@resend.dev>',
+          to: emailLower,
+          subject: 'CodeChat Email Verification',
+          html: `<p>Your verification code is: <strong>${code}</strong></p><p>This code will expire in 10 minutes.</p>`
+        });
+        return res.json({ success: true, message: 'OTP sent to email' });
+      } catch (err) {
+        console.error('Email send error:', err);
+        return res.status(500).json({ error: 'Failed to send OTP email' });
+      }
+    } else {
+      // For local testing without resend API
+      console.log(`[TEST MODE] OTP for ${emailLower} is ${code}`);
+      return res.status(500).json({ error: 'Email service is not configured' });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+const verifyOtp = async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
+
+    const emailLower = email.toLowerCase();
+    const record = otpStore.get(emailLower);
+
+    if (!record || record.expires < Date.now()) {
+      return res.status(400).json({ error: 'OTP expired or not requested' });
+    }
+    if (record.code !== code) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    record.verified = true;
+    res.json({ success: true, message: 'Email verified successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   signup,
   login,
   me,
   logout,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  sendOtp,
+  verifyOtp
 };

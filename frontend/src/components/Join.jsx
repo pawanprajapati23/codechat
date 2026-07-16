@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { generateRoomCode, copyToClipboard } from '../utils/helpers';
-import { login, signup, forgotPassword, resetPassword, logout } from '../utils/api';
+import { login, signup, forgotPassword, resetPassword, logout, sendOtp, verifyOtp } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Join = ({ onJoin, authUser }) => {
@@ -16,6 +16,10 @@ const Join = ({ onJoin, authUser }) => {
   const [resetCode, setResetCode] = useState('');
   const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
+  
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [signupOtp, setSignupOtp] = useState('');
 
   useEffect(() => {
     // Focus username input on mount if guest
@@ -49,7 +53,8 @@ const Join = ({ onJoin, authUser }) => {
     if (mode === 'signup' || mode === 'login') {
       if (mode === 'signup' && !username.trim()) newErrors.username = 'Please enter your name';
       if (!email.trim()) newErrors.email = 'Email is required';
-      if (!password) newErrors.password = 'Password is required';
+      if (mode === 'signup' && !isEmailVerified) newErrors.email = 'Please verify your email first';
+      if ((mode === 'login' || (mode === 'signup' && isEmailVerified)) && !password) newErrors.password = 'Password is required';
     }
 
     if (mode === 'forgot') {
@@ -127,9 +132,50 @@ const Join = ({ onJoin, authUser }) => {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!email.trim()) {
+      setErrors({ ...errors, email: 'Email is required' });
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      setErrors({});
+      await sendOtp({ email: email.trim() });
+      setIsOtpSent(true);
+      alert('OTP sent to your email!');
+    } catch (error) {
+      setErrors({ form: error.message || 'Failed to send OTP' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!signupOtp.trim()) {
+      setErrors({ ...errors, signupOtp: 'OTP is required' });
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      setErrors({});
+      await verifyOtp({ email: email.trim(), code: signupOtp.trim() });
+      setIsEmailVerified(true);
+      setIsOtpSent(false);
+    } catch (error) {
+      setErrors({ form: error.message || 'Invalid OTP' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const openAuth = (authMode) => {
     setMode(authMode);
     setErrors({});
+    setIsOtpSent(false);
+    setIsEmailVerified(false);
+    setSignupOtp('');
+    setForgotPasswordStep(1);
+  };
   };
 
   const closeAuth = () => {
@@ -352,21 +398,66 @@ const Join = ({ onJoin, authUser }) => {
 
                 {(mode !== 'forgot' || (mode === 'forgot' && forgotPasswordStep === 1)) && (
                   <div>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                        placeholder="Email Address"
-                      />
+                    <div className="relative flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          disabled={mode === 'signup' && isEmailVerified}
+                          className={`w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all ${mode === 'signup' && isEmailVerified ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          placeholder="Email Address"
+                        />
+                        {mode === 'signup' && isEmailVerified && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+                            <Check size={18} />
+                          </div>
+                        )}
+                      </div>
+                      {mode === 'signup' && !isEmailVerified && (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSubmitting || isOtpSent}
+                          className="px-4 py-3 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:hover:bg-indigo-800/50 text-indigo-700 dark:text-indigo-300 font-semibold rounded-xl transition-colors whitespace-nowrap disabled:opacity-50"
+                        >
+                          {isOtpSent ? 'Sent' : 'Verify'}
+                        </button>
+                      )}
                     </div>
                     {errors.email && <p className="text-red-500 text-xs mt-1 ml-1">{errors.email}</p>}
                   </div>
                 )}
 
-                {(mode !== 'forgot' || (mode === 'forgot' && forgotPasswordStep === 2)) && (
+                {mode === 'signup' && isOtpSent && !isEmailVerified && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                        <input
+                          type="text"
+                          value={signupOtp}
+                          onChange={(e) => setSignupOtp(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono tracking-widest uppercase"
+                          placeholder="6-DIGIT OTP"
+                          maxLength={6}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleVerifyOtp}
+                        disabled={isSubmitting}
+                        className="px-4 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-colors whitespace-nowrap"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                    {errors.signupOtp && <p className="text-red-500 text-xs mt-1 ml-1">{errors.signupOtp}</p>}
+                  </motion.div>
+                )}
+
+                {((mode === 'login' || (mode === 'signup' && isEmailVerified)) || (mode === 'forgot' && forgotPasswordStep === 2)) && (
                   <div>
                     <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -426,8 +517,8 @@ const Join = ({ onJoin, authUser }) => {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 transition-all mt-6 active:scale-[0.98]"
+                  disabled={isSubmitting || (mode === 'signup' && !isEmailVerified)}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 transition-all mt-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Please wait...' : (mode === 'login' ? 'Sign In' : mode === 'forgot' ? (forgotPasswordStep === 1 ? 'Send Reset Code' : 'Reset Password') : 'Create Account')}
                 </button>

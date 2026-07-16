@@ -25,6 +25,16 @@ export const signup = (payload) => request('/api/auth/signup', {
   body: JSON.stringify(payload),
 });
 
+export const sendOtp = (payload) => request('/api/auth/send-otp', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+});
+
+export const verifyOtp = (payload) => request('/api/auth/verify-otp', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+});
+
 export const login = (payload) => request('/api/auth/login', {
   method: 'POST',
   body: JSON.stringify(payload),
