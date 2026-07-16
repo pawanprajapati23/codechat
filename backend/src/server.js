@@ -363,7 +363,7 @@ io.on('connection', (socket) => {
           clientMessage = {
             id: messageId,
             roomCode: messageData.roomCode,
-            message: messageData.message,
+            text: messageData.message,
             messageType: messageData.messageType,
             mediaUrl: messageData.mediaUrl,
             attachment: messageData.attachment,
@@ -377,7 +377,7 @@ io.on('connection', (socket) => {
         clientMessage = {
           id: messageId,
           roomCode: messageData.roomCode,
-          message: messageData.message,
+          text: messageData.message,
           messageType: messageData.messageType,
           mediaUrl: messageData.mediaUrl,
           attachment: messageData.attachment,
