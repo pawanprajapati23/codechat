@@ -195,29 +195,36 @@ io.on('connection', (socket) => {
       const normalizedRoomCode = roomCode.trim().toUpperCase();
       
       // Look up or create Room in DB
-      let dbRoom = await RoomModel.findOne({ roomCode: normalizedRoomCode });
-      if (!dbRoom) {
-        // If not found, create a new private room (guest mode default)
-        dbRoom = await RoomModel.create({
-          roomCode: normalizedRoomCode,
-          type: socket.user.isGuest ? 'private' : 'group',
-          createdBy: socket.user.isGuest ? null : socket.user._id
-        });
+      let dbRoom = null;
+      let isPrivate = socket.user.isGuest;
+      
+      if (mongoose.connection.readyState === 1) {
+        try {
+          dbRoom = await RoomModel.findOne({ roomCode: normalizedRoomCode });
+          if (!dbRoom) {
+            dbRoom = await RoomModel.create({
+              roomCode: normalizedRoomCode,
+              type: socket.user.isGuest ? 'private' : 'group',
+              createdBy: socket.user.isGuest ? null : socket.user._id
+            });
+          }
+          isPrivate = dbRoom.type === 'private';
+          
+          if (!socket.user.isGuest && !dbRoom.members.includes(socket.user._id)) {
+            dbRoom.members.push(socket.user._id);
+            await dbRoom.save();
+          }
+        } catch (dbError) {
+          console.warn('Gracefully continuing despite DB error:', dbError.message);
+        }
       }
 
-      const isPrivate = dbRoom.type === 'private';
       const inMemoryRoom = roomManager.getRoom(normalizedRoomCode);
       const currentUserCount = inMemoryRoom ? inMemoryRoom.users.length : 0;
 
       // Strict 2-user limit for private rooms
-      if (isPrivate && currentUserCount >= 2 && (!inMemoryRoom.users.find(u => u.id === socket.user._id.toString() || u.id === socket.user.username))) {
+      if (isPrivate && currentUserCount >= 2 && (!inMemoryRoom || !inMemoryRoom.users.find(u => u.id === socket.user._id.toString() || u.name === socket.user.username))) {
         return socket.emit('error', { message: 'This private room is full (max 2 users)' });
-      }
-
-      // Ensure user is in room members if authenticated
-      if (!socket.user.isGuest && !dbRoom.members.includes(socket.user._id)) {
-        dbRoom.members.push(socket.user._id);
-        await dbRoom.save();
       }
 
       currentUser = {
@@ -234,7 +241,14 @@ io.on('connection', (socket) => {
       // Add user to room
       roomManager.addUserToRoom(normalizedRoomCode, currentUser);
       userManager.addUser(currentUser);
-      await addConversationParticipant(normalizedRoomCode, socket.user._id);
+      
+      if (mongoose.connection.readyState === 1) {
+        try {
+          await addConversationParticipant(normalizedRoomCode, socket.user._id);
+        } catch (dbError) {
+          console.warn('Failed to add conversation participant:', dbError.message);
+        }
+      }
 
       // Get room info
       const room = roomManager.getRoom(normalizedRoomCode);
@@ -255,7 +269,7 @@ io.on('connection', (socket) => {
           code: normalizedRoomCode,
           users: room.users,
           onlineCount: room.users.length,
-          type: dbRoom.type
+          type: isPrivate ? 'private' : 'group'
         }
       });
 
@@ -328,20 +342,37 @@ io.on('connection', (socket) => {
       let clientMessage;
       let messageId = new mongoose.Types.ObjectId().toString(); // Default ID for guests
 
-      if (!socket.user.isGuest) {
-        const savedMessage = await Message.create(messageData);
-        await savedMessage.populate([
-          { path: 'senderId', select: 'username email profilePic' },
-          { path: 'replyTo', populate: { path: 'senderId', select: 'username' } }
-        ]);
-        await upsertConversation({
-          roomCode: savedMessage.roomCode,
-          senderId: socket.user._id,
-          text: savedMessage.message,
-          timestamp: savedMessage.timestamp
-        });
-        messageId = savedMessage._id.toString();
-        clientMessage = toClientMessage(savedMessage);
+      if (!socket.user.isGuest && mongoose.connection.readyState === 1) {
+        try {
+          const savedMessage = await Message.create(messageData);
+          await savedMessage.populate([
+            { path: 'senderId', select: 'username email profilePic' },
+            { path: 'replyTo', populate: { path: 'senderId', select: 'username' } }
+          ]);
+          await upsertConversation({
+            roomCode: savedMessage.roomCode,
+            senderId: socket.user._id,
+            text: savedMessage.message,
+            timestamp: savedMessage.timestamp
+          });
+          messageId = savedMessage._id.toString();
+          clientMessage = toClientMessage(savedMessage);
+        } catch (dbError) {
+          console.warn('DB Error saving message:', dbError.message);
+          // Fall back to guest-style in-memory message
+          clientMessage = {
+            id: messageId,
+            roomCode: messageData.roomCode,
+            message: messageData.message,
+            messageType: messageData.messageType,
+            mediaUrl: messageData.mediaUrl,
+            attachment: messageData.attachment,
+            status: 'sent',
+            replyTo: messageData.replyTo,
+            timestamp: messageData.timestamp.toISOString(),
+            senderId: socket.user._id.toString()
+          };
+        }
       } else {
         clientMessage = {
           id: messageId,
@@ -364,8 +395,10 @@ io.on('connection', (socket) => {
       clientMessage.sender = currentUser.name;
       clientMessage.status = isDirectMessage || room.users.length > 1 ? 'delivered' : 'sent';
 
-      if (clientMessage.status === 'delivered' && !socket.user.isGuest) {
-        await Message.findByIdAndUpdate(messageId, { status: 'delivered' });
+      if (clientMessage.status === 'delivered' && !socket.user.isGuest && mongoose.connection.readyState === 1) {
+        try {
+          await Message.findByIdAndUpdate(messageId, { status: 'delivered' });
+        } catch (dbError) {}
       }
 
       // Keep legacy in-memory handlers populated for backward-compatible diagnostics.
@@ -567,31 +600,39 @@ io.on('connection', (socket) => {
     (async () => {
       try {
         const normalizedRoomCode = roomCode.trim().toUpperCase();
-        const messages = await Message.find({ roomCode: normalizedRoomCode })
-          .sort({ timestamp: 1 })
-          .limit(Math.min(Number(limit) || 50, 200))
-          .populate('senderId', 'username email profilePic');
+        let clientMessages = [];
 
-        await Message.updateMany(
-          { roomCode: normalizedRoomCode, senderId: { $ne: socket.user._id }, status: { $ne: 'seen' } },
-          { $set: { status: 'seen' } }
-        );
+        if (mongoose.connection.readyState === 1) {
+          const messages = await Message.find({ roomCode: normalizedRoomCode })
+            .sort({ timestamp: 1 })
+            .limit(Math.min(Number(limit) || 50, 200))
+            .populate('senderId', 'username email profilePic');
 
-        const clientMessages = messages.map(toClientMessage);
+          await Message.updateMany(
+            { roomCode: normalizedRoomCode, senderId: { $ne: socket.user._id }, status: { $ne: 'seen' } },
+            { $set: { status: 'seen' } }
+          );
+
+          clientMessages = messages.map(toClientMessage);
+        } else {
+          // Fallback to in-memory messages if DB is offline
+          const memoryMessages = messageHandler.getMessages(normalizedRoomCode);
+          clientMessages = memoryMessages.slice(-(Math.min(Number(limit) || 50, 200)));
+        }
 
         socket.to(normalizedRoomCode).emit('messages-seen', {
           roomCode: normalizedRoomCode,
           seenBy: socket.user._id.toString()
         });
 
-      if (callback) {
+        if (callback) {
           callback({ success: true, messages: clientMessages });
-      }
+        }
       } catch (error) {
         console.error('Get messages error:', error);
-      if (callback) {
-        callback({ success: false, error: error.message });
-      }
+        if (callback) {
+          callback({ success: false, error: error.message });
+        }
       }
     })();
   });
