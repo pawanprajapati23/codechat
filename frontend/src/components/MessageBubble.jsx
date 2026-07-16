@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Check, CheckCheck, Download, FileText, MoreVertical, Pencil, Trash2, Reply, X } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
-import { motion } from 'framer-motion';
 
 const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, onDeleteMessage, onReplyMessage }) => {
   const { text, timestamp, sender, reactions = {}, attachment, status, isEdited, isDeleted, replyTo, _id, id } = message;
@@ -13,6 +12,28 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
   const [showOptions, setShowOptions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(text || '');
+
+  // Touch handlers for lightweight swipe-to-reply
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const distance = touchEndX.current - touchStartX.current;
+    if (Math.abs(distance) > 60 && onReplyMessage) {
+      onReplyMessage(message);
+    }
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
 
   // Detect code blocks (```language\ncode\n```)
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
@@ -53,7 +74,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
     });
   };
 
-  const renderMessageContent = () => {
+  const renderedContent = useMemo(() => {
     if (isDeleted) {
       return (
         <p className="text-sm sm:text-base leading-relaxed italic opacity-70 flex items-center gap-1">
@@ -152,7 +173,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
         })}
       </>
     );
-  };
+  }, [text, isDeleted, isEditing, editText, attachment, hasCodeBlock, isOwn, darkMode]);
 
   const quickReactions = ['👍', '❤️', '😂', '😮', '👏', '🔥'];
 
@@ -166,22 +187,12 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
   const totalReactions = Object.values(reactions).reduce((sum, count) => sum + count, 0);
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className={`flex items-end gap-2 mb-1.5 sm:mb-2 w-full ${isOwn ? 'flex-row-reverse' : ''}`}
+    <div 
+      className={`flex items-end gap-2 mb-1.5 sm:mb-2 w-full ${isOwn ? 'flex-row-reverse' : ''} animate-fade-in`}
       onMouseLeave={() => setShowOptions(false)}
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.15}
-      dragDirectionLock
-      onDragEnd={(e, info) => {
-        if (!onReplyMessage) return;
-        if (info.offset.x > 50 || info.offset.x < -50) {
-          onReplyMessage(message);
-        }
-      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Avatar */}
       {!isOwn && (
@@ -255,7 +266,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
               </div>
             )}
             
-            {renderMessageContent()}
+            {renderedContent}
             
             {/* Timestamp */}
             <span className={`mt-1 flex items-center gap-1 text-[10px] sm:text-xs opacity-70 ${isOwn ? 'justify-end text-gray-700 dark:text-gray-200' : 'justify-start text-gray-500 dark:text-gray-400'}`}>
@@ -304,7 +315,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
           Double-click to react
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
