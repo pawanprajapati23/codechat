@@ -15,7 +15,7 @@ const Header = ({ roomCode, userCount, onLeave, onStartCall, onOpenSidebar, show
   };
 
   return (
-    <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-indigo-100 dark:border-gray-800 px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm sticky top-0 z-50 transition-colors">
+    <header className="bg-[#00a884] dark:bg-[#202c33] border-b border-[#008f72] dark:border-[#2a3942] px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm sticky top-0 z-50 transition-colors">
       <div className="flex items-center justify-between w-full mx-auto">
         {/* Left: Room Info */}
         <div className="flex items-center gap-2 sm:gap-3">
@@ -28,7 +28,7 @@ const Header = ({ roomCode, userCount, onLeave, onStartCall, onOpenSidebar, show
               <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           )}
-          <div className="bg-indigo-50/50 dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:bg-indigo-100 dark:hover:bg-gray-700 transition-all active:scale-95 border border-indigo-100 dark:border-gray-700"
+          <div className="bg-white/10 text-white rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:bg-white/20 transition-all active:scale-95"
                onClick={handleCopy}>
             <span className="font-bold text-xs sm:text-sm font-mono tracking-wider">{roomCode}</span>
             {copied ? (
@@ -38,9 +38,9 @@ const Header = ({ roomCode, userCount, onLeave, onStartCall, onOpenSidebar, show
             )}
           </div>
           
-          <div className="flex items-center gap-1 sm:gap-1.5 bg-indigo-50/50 dark:bg-gray-800 border border-indigo-100 dark:border-gray-700 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg">
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500 dark:text-indigo-400" />
-            <span className="text-xs sm:text-sm font-semibold text-indigo-700 dark:text-indigo-300">{userCount}</span>
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-white/10 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/90" />
+            <span className="text-xs sm:text-sm font-semibold text-white/90">{userCount}</span>
           </div>
         </div>
 
@@ -48,29 +48,29 @@ const Header = ({ roomCode, userCount, onLeave, onStartCall, onOpenSidebar, show
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => onStartCall('audio')}
-            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-indigo-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all active:scale-95"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
             aria-label="Start audio call"
             title="Start audio call"
           >
-            <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
 
           <button
             onClick={() => onStartCall('video')}
-            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-indigo-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all active:scale-95"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
             aria-label="Start video call"
             title="Start video call"
           >
-            <Video className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Video className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
 
           <button
             onClick={() => onStartCall('screen')}
-            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-indigo-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all active:scale-95"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:bg-white/10 transition-all active:scale-95"
             aria-label="Share screen"
             title="Share screen"
           >
-            <MonitorUp className="w-4 h-4 sm:w-5 sm:h-5" />
+            <MonitorUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
 
           {/* Share Room */}
@@ -79,7 +79,7 @@ const Header = ({ roomCode, userCount, onLeave, onStartCall, onOpenSidebar, show
           {/* Leave Button */}
           <button
             onClick={onLeave}
-            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-red-50 hover:bg-red-500 text-red-600 hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white rounded-lg sm:rounded-xl transition-all active:scale-95 border border-red-100 dark:border-red-500/20"
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 hover:bg-red-500 text-white rounded-lg sm:rounded-xl transition-all active:scale-95"
           >
             <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Leave</span>

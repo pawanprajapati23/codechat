@@ -212,14 +212,14 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
           <div
             className={`rounded-2xl ${hasCodeBlock || isEditing ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-3.5 py-2'} shadow-sm flex flex-col ${
               isOwn
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tr-sm shadow-md shadow-indigo-500/20'
-                : 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-md text-gray-900 dark:text-gray-100 rounded-tl-sm border border-gray-100 dark:border-gray-700'
-            } ${isDeleted ? 'bg-gray-100/50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700' : ''}`}
+                ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-gray-900 dark:text-[#e9edef] rounded-tr-sm'
+                : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-[#e9edef] rounded-tl-sm border border-transparent dark:border-transparent'
+            } ${isDeleted ? 'bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700' : ''}`}
             onDoubleClick={() => !isDeleted && setShowReactions(!showReactions)}
           >
             {replyTo && !isDeleted && (
-              <div className={`mb-1 p-2 rounded-md border-l-4 text-xs flex flex-col ${isOwn ? 'bg-black/10 border-l-white/50 text-white/90' : 'bg-indigo-50 dark:bg-indigo-900/20 border-l-indigo-500 text-gray-800 dark:text-gray-200'}`}>
-                <span className={`font-bold ${isOwn ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`}>{replyTo.sender}</span>
+              <div className="mb-1 p-2 bg-black/5 dark:bg-black/20 rounded-md border-l-4 border-l-emerald-500 text-xs flex flex-col">
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{replyTo.sender}</span>
                 <span className="opacity-80 truncate">{replyTo.text || (replyTo.attachment ? 'Attachment' : 'Message')}</span>
               </div>
             )}
@@ -227,7 +227,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
             {renderMessageContent()}
             
             {/* Timestamp */}
-            <span className={`mt-1 flex items-center gap-1 text-[10px] sm:text-xs opacity-70 ${isOwn ? 'justify-end text-white/80' : 'justify-start text-gray-500 dark:text-gray-400'}`}>
+            <span className={`mt-1 flex items-center gap-1 text-[10px] sm:text-xs opacity-70 ${isOwn ? 'justify-end text-gray-700 dark:text-gray-200' : 'justify-start text-gray-500 dark:text-gray-400'}`}>
               <span>{formatTime(timestamp)}</span>
               {isEdited && !isDeleted && <span className="italic opacity-80">(edited)</span>}
               {isOwn && !isDeleted && <MessageStatus status={status} />}

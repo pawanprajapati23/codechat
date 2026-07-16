@@ -252,7 +252,7 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
   };
 
   return (
-    <div className="flex h-[100dvh] bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950 overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden font-sans">
       <ConnectionStatus />
       
       {/* Sidebar for Logged-in Users */}
@@ -264,7 +264,7 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
             <div className="flex flex-col h-full">
               <div className="p-4 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between transition-colors">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-[#e9edef] flex items-center gap-2">
-                  <MessageSquare className="text-indigo-500 dark:text-indigo-400" size={20} />
+                  <MessageSquare className="text-[#00a884]" size={20} />
                   Chats
                 </h2>
                 <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
@@ -294,7 +294,7 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
                           {conv.lastMessage || 'Media'}
                         </span>
                         {conv.unreadCount > 0 && (
-                          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20 text-xs font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-[#00a884] text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             {conv.unreadCount}
                           </span>
                         )}
@@ -326,14 +326,14 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
         />
 
         {isGuest && (
-          <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-b border-indigo-100 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-sm py-2.5 px-4 flex items-center justify-between z-10 transition-colors shadow-sm">
+          <div className="bg-gray-100 dark:bg-[#182229] border-b border-gray-200 dark:border-[#202c33] text-gray-600 dark:text-[#8696a0] text-sm py-2 px-4 flex items-center justify-between z-10 transition-colors">
             <div className="flex items-center gap-2">
-              <LogIn size={16} className="text-indigo-500 dark:text-indigo-400" />
+              <LogIn size={16} className="text-[#00a884]" />
               <span className="font-medium">Login to save your chats</span>
             </div>
             <button 
               onClick={() => window.location.reload()} 
-              className="px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 shadow-md shadow-indigo-500/20 text-white rounded-full text-xs font-bold transition-all"
+              className="px-3 py-1 bg-[#00a884] hover:bg-[#008f72] text-white rounded-full text-xs font-bold transition"
             >
               Login
             </button>
@@ -363,14 +363,11 @@ const Chat = ({ username, userId, roomCode: initialRoomCode, onLeave, darkMode, 
               </>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 px-4">
-                <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-[2rem] shadow-xl shadow-indigo-500/10 flex items-center justify-center mb-6 rotate-3">
-                  <div className="w-16 h-16 bg-white dark:bg-gray-800 rounded-2xl shadow-inner flex items-center justify-center -rotate-6">
-                    <span className="text-4xl">💬</span>
-                  </div>
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-[#2a3942] dark:to-[#202c33] rounded-full flex items-center justify-center mb-4">
+                  <span className="text-4xl">💬</span>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">You're connected!</h3>
-                <p className="text-gray-500 dark:text-gray-400 font-medium text-center">
-                  Start the conversation in <span className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">#{activeRoom}</span>
+                <p className="text-gray-500 dark:text-[#8696a0] font-medium text-center">
+                  Start of conversation in #{activeRoom}
                 </p>
               </div>
             ) : (

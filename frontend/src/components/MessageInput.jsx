@@ -39,9 +39,9 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
     }
 
     // Keep focus on input (prevent keyboard from hiding on mobile)
-    if (e.target && e.target.querySelector('input')) {
+    if (e.target && e.target.querySelector('input[type="text"]')) {
       setTimeout(() => {
-        e.target.querySelector('input').focus();
+        e.target.querySelector('input[type="text"]').focus();
       }, 10);
     }
   };
@@ -97,14 +97,14 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
   const canSend = message.trim() || attachment;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border-t border-indigo-50 dark:border-gray-800 px-3 sm:px-4 py-3 sm:py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.02)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.2)] shrink-0 transition-colors z-20">
+    <form onSubmit={handleSubmit} className="bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200 dark:border-[#2a3942] px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0 transition-colors">
       <div className="max-w-4xl mx-auto relative">
         {replyingTo && (
-          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/50 dark:bg-indigo-900/10 px-3 py-2 border-l-4 border-l-indigo-500 backdrop-blur-sm">
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-[#2a3942] bg-gray-50 dark:bg-[#111b21] px-3 py-2 border-l-4 border-l-[#25d366]">
             <div className="min-w-0 flex items-center gap-2">
-              <Reply className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+              <Reply className="w-4 h-4 text-[#25d366] flex-shrink-0" />
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate">{replyingTo.sender}</span>
+                <span className="text-xs font-bold text-[#25d366] truncate">{replyingTo.sender}</span>
                 <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
                   {replyingTo.text || (replyingTo.attachment ? 'Attachment' : 'Message')}
                 </span>
@@ -121,12 +121,12 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
         )}
 
         {(attachment || fileError) && (
-          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-indigo-100 dark:border-gray-800 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md px-3 py-2 shadow-sm">
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-[#2a3942] bg-gray-50 dark:bg-[#111b21] px-3 py-2">
             <div className="min-w-0 flex items-center gap-2">
               {attachment?.type?.startsWith('image/') ? (
-                <ImagePlus className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <ImagePlus className="w-4 h-4 text-[#25d366] flex-shrink-0" />
               ) : (
-                <Paperclip className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <Paperclip className="w-4 h-4 text-[#25d366] flex-shrink-0" />
               )}
               <span className={`truncate text-xs sm:text-sm ${fileError ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200'}`}>
                 {fileError || attachment.name}
@@ -156,7 +156,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 sm:p-3.5 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all active:scale-95"
+            className="p-3 sm:p-3.5 rounded-full bg-transparent text-[#54656f] dark:text-[#8696a0] hover:bg-gray-200 dark:hover:bg-[#2a3942] transition-all active:scale-95"
             aria-label="Attach image or PDF"
             title="Attach image or PDF"
           >
@@ -170,7 +170,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
             onChange={handleChange}
             onKeyPress={handleKeyPress}
             placeholder="Type a message"
-            className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-white/90 dark:bg-gray-800/90 shadow-inner border border-gray-200/50 dark:border-gray-700/50 text-gray-800 dark:text-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-gray-400 text-sm sm:text-base backdrop-blur-sm"
+            className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-white dark:bg-[#2a3942] text-gray-800 dark:text-[#d1d7db] rounded-full focus:outline-none focus:ring-1 focus:ring-[#25d366] transition-all placeholder-gray-400 dark:placeholder-[#8696a0] text-sm sm:text-base"
             autoComplete="off"
             autoFocus
           />
@@ -181,8 +181,8 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className={`absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 transition-colors ${
               showEmojiPicker 
-                ? 'text-indigo-500 dark:text-indigo-400'
-                : 'text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400'
+                ? 'text-[#128c7e] dark:text-[#25d366]'
+                : 'text-gray-400 dark:text-[#8696a0] hover:text-[#128c7e] dark:hover:text-[#25d366]'
             }`}
             aria-label="Add emoji"
           >
@@ -194,10 +194,10 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
         <button
           type="submit"
           disabled={!canSend}
-          className={`p-3 sm:p-3.5 rounded-full transition-all shadow-sm flex items-center justify-center ${
+          className={`p-3 sm:p-3.5 rounded-full transition-all ${
             canSend
-              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/40 active:scale-95'
-              : 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+              ? 'bg-[#00a884] dark:bg-[#25d366] text-white dark:text-[#111b21] hover:shadow-lg active:scale-95 hover:bg-[#008f72] dark:hover:bg-[#20c05c]'
+              : 'bg-gray-200 dark:bg-[#2a3942] text-gray-400 dark:text-[#8696a0] cursor-not-allowed'
           }`}
           aria-label="Send message"
         >
