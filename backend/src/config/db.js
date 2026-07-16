@@ -14,6 +14,7 @@ const connectDB = async () => {
       }
     } catch (err) {
       console.warn('Local MongoDB connection failed. Falling back to in-memory database...');
+      await mongoose.disconnect(); // Reset mongoose state
     }
 
     try {
