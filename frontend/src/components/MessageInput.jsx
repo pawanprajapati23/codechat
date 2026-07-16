@@ -97,7 +97,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
   const canSend = message.trim() || attachment;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200 dark:border-[#2a3942] px-3 sm:px-4 py-3 sm:py-4 shadow-lg shrink-0 transition-colors">
+    <form onSubmit={handleSubmit} className="bg-transparent border-none px-2 py-2 shrink-0 transition-colors z-20 w-full pb-3 sm:pb-4">
       <div className="max-w-4xl mx-auto relative">
         {replyingTo && (
           <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-[#2a3942] bg-gray-50 dark:bg-[#111b21] px-3 py-2 border-l-4 border-l-[#25d366]">
@@ -144,7 +144,7 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
           </div>
         )}
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -153,55 +153,57 @@ const MessageInput = ({ onSendMessage, onSendAttachment, onTyping, replyingTo, o
             className="hidden"
           />
 
+        <div className="flex-1 relative flex items-center bg-white dark:bg-[#2a3942] rounded-full shadow-sm border border-transparent dark:border-transparent">
+          {/* Emoji Button (Left) */}
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-3 sm:p-3.5 rounded-full bg-transparent text-[#54656f] dark:text-[#8696a0] hover:bg-gray-200 dark:hover:bg-[#2a3942] transition-all active:scale-95"
-            aria-label="Attach image or PDF"
-            title="Attach image or PDF"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`p-2 ml-1 transition-colors ${
+              showEmojiPicker 
+                ? 'text-[#128c7e] dark:text-[#25d366]'
+                : 'text-[#8696a0] hover:text-[#128c7e] dark:hover:text-[#25d366]'
+            }`}
+            aria-label="Add emoji"
           >
-            <Paperclip className="w-5 h-5" />
+            <Smile className="w-6 h-6" />
           </button>
 
-        <div className="flex-1 relative">
           <input
             type="text"
             value={message}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
-            placeholder="Type a message"
-            className="w-full px-4 sm:px-5 py-3 sm:py-3.5 pr-11 sm:pr-12 bg-white dark:bg-[#2a3942] text-gray-800 dark:text-[#d1d7db] rounded-full focus:outline-none focus:ring-1 focus:ring-[#25d366] transition-all placeholder-gray-400 dark:placeholder-[#8696a0] text-sm sm:text-base"
+            placeholder="Message"
+            className="w-full py-2.5 px-2 bg-transparent text-gray-800 dark:text-[#d1d7db] focus:outline-none placeholder-[#8696a0] text-base"
             autoComplete="off"
             autoFocus
           />
           
-          {/* Emoji Button */}
+          {/* Attachment Button (Right inside input) */}
           <button
             type="button"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={`absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 transition-colors ${
-              showEmojiPicker 
-                ? 'text-[#128c7e] dark:text-[#25d366]'
-                : 'text-gray-400 dark:text-[#8696a0] hover:text-[#128c7e] dark:hover:text-[#25d366]'
-            }`}
-            aria-label="Add emoji"
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 mr-1 text-[#8696a0] hover:bg-gray-100 dark:hover:bg-[#374248] rounded-full transition-all"
+            aria-label="Attach"
+            title="Attach"
           >
-            <Smile className="w-5 h-5" />
+            <Paperclip className="w-5 h-5 -rotate-45" />
           </button>
         </div>
 
-        {/* Send Button */}
+
+
         <button
           type="submit"
           disabled={!canSend}
-          className={`p-3 sm:p-3.5 rounded-full transition-all ${
+          className={`p-3 rounded-full flex-shrink-0 transition-all ${
             canSend
-              ? 'bg-[#00a884] dark:bg-[#25d366] text-white dark:text-[#111b21] hover:shadow-lg active:scale-95 hover:bg-[#008f72] dark:hover:bg-[#20c05c]'
-              : 'bg-gray-200 dark:bg-[#2a3942] text-gray-400 dark:text-[#8696a0] cursor-not-allowed'
+              ? 'bg-[#00a884] dark:bg-[#00a884] text-white hover:bg-[#008f72] active:scale-95 shadow-md'
+              : 'bg-[#00a884] dark:bg-[#00a884] text-white opacity-50 cursor-not-allowed shadow-md'
           }`}
           aria-label="Send message"
         >
-          <Send className="w-5 h-5" />
+          <Send className="w-5 h-5 ml-0.5" />
         </button>
 
         {/* Emoji Picker Popup */}
