@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { generateRoomCode, copyToClipboard } from '../utils/helpers';
 import { login, signup, forgotPassword, resetPassword } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +15,7 @@ const Join = ({ onJoin, authUser }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     // Focus username input on mount if guest
@@ -349,14 +350,21 @@ const Join = ({ onJoin, authUser }) => {
                 {(mode !== 'forgot' || (mode === 'forgot' && forgotPasswordStep === 2)) && (
                   <div>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                        placeholder={mode === 'forgot' ? 'New Password' : 'Password'}
-                      />
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-12 text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                          placeholder={mode === 'forgot' ? 'New Password' : 'Password'}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
                     </div>
                     {errors.password && <p className="text-red-500 text-xs mt-1 ml-1">{errors.password}</p>}
                     {mode === 'login' && (
