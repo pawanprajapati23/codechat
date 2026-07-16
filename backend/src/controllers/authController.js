@@ -37,7 +37,7 @@ const signup = async (req, res, next) => {
     if (resend) {
       try {
         await resend.emails.send({
-          from: 'CodeChat <onboarding@resend.dev>',
+          from: process.env.RESEND_FROM_EMAIL || 'CodeChat <onboarding@resend.dev>',
           to: user.email,
           subject: 'Welcome to CodeChat!',
           html: `<h1>Welcome ${user.username}!</h1><p>Thanks for joining CodeChat. We hope you enjoy chatting.</p>`
@@ -106,7 +106,7 @@ const forgotPassword = async (req, res, next) => {
     if (resend) {
       try {
         await resend.emails.send({
-          from: 'CodeChat <onboarding@resend.dev>',
+          from: process.env.RESEND_FROM_EMAIL || 'CodeChat <onboarding@resend.dev>',
           to: user.email,
           subject: 'Your Password Reset Code',
           html: `<p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p>`
