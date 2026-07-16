@@ -176,7 +176,6 @@ const Join = ({ onJoin, authUser }) => {
     setSignupOtp('');
     setForgotPasswordStep(1);
   };
-  };
 
   const closeAuth = () => {
     setMode('guest');
