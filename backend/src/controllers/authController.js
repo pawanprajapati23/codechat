@@ -189,7 +189,25 @@ const sendOtp = async (req, res, next) => {
           from: process.env.RESEND_FROM_EMAIL || 'CodeChat <onboarding@resend.dev>',
           to: emailLower,
           subject: 'CodeChat Email Verification',
-          html: `<p>Your verification code is: <strong>${code}</strong></p><p>This code will expire in 10 minutes.</p>`
+          html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">CodeChat</h1>
+                <p style="color: #64748b; font-size: 16px; margin-top: 8px;">Join the conversation today</p>
+              </div>
+              <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);">
+                <h2 style="color: #0f172a; margin-top: 0; font-size: 22px; font-weight: 700;">Welcome aboard! 👋</h2>
+                <p style="color: #334155; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">Thank you for starting your journey with CodeChat. To complete your signup and verify your email address, please use the OTP code below:</p>
+                <div style="text-align: center; margin: 35px 0;">
+                  <span style="display: inline-block; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #4f46e5; background-color: #e0e7ff; padding: 20px 35px; border-radius: 12px; border: 2px dashed #818cf8;">${code}</span>
+                </div>
+                <p style="color: #64748b; font-size: 14px; text-align: center; margin-top: 30px;">This code is valid for the next 10 minutes.<br>If you didn't request this, you can safely ignore this email.</p>
+              </div>
+              <div style="text-align: center; margin-top: 30px; color: #94a3b8; font-size: 13px;">
+                <p>&copy; ${new Date().getFullYear()} CodeChat. All rights reserved.</p>
+              </div>
+            </div>
+          `
         });
         return res.json({ success: true, message: 'OTP sent to email' });
       } catch (err) {
