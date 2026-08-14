@@ -4,4 +4,4 @@ Disallow: /chat
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://codechatlove.vercel.app/sitemap.xml
+Sitemap: https://codechat.sizesnap.in/sitemap.xml
