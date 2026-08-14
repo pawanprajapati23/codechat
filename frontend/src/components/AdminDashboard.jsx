@@ -227,10 +227,10 @@ export default function AdminDashboard({ authUser, setAuthUser, darkMode, toggle
     try { await logoutApi(); } catch {}
     localStorage.removeItem('authToken');
     setAuthUser(null);
-    navigate('/');
+    navigate('/app');
   };
 
-  if (!authUser) return <Navigate to="/" replace />;
+  if (!authUser) return <Navigate to="/app" replace />;
   if (authUser.role !== 'admin') return <Navigate to="/chat" replace />;
 
   if (loading) {

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /chat
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://codechatlove.vercel.app/sitemap.xml

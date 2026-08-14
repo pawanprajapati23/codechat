@@ -6,6 +6,13 @@ import { getMe, logout as logoutApi } from './utils/api';
 import Join from './components/Join';
 import Chat from './components/Chat';
 import AdminDashboard from './components/AdminDashboard';
+import LandingPage from './pages/LandingPage';
+import AboutPage from './pages/AboutPage';
+import FounderPage from './pages/FounderPage';
+import FeaturesPage from './pages/FeaturesPage';
+import ContactPage from './pages/ContactPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 
 function App() {
   const [isJoined, setIsJoined] = useState(false);
@@ -79,9 +86,9 @@ function App() {
       localStorage.removeItem('authToken');
       setAuthUser(null);
       disconnectSocket();
-      navigate('/');
+      navigate('/app');
     } else {
-      navigate('/');
+      navigate('/app');
     }
   };
 
@@ -100,8 +107,16 @@ function App() {
   return (
     <div className="app">
       <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/founder" element={<FounderPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+
         <Route 
-          path="/" 
+          path="/app" 
           element={
             !isJoined ? (
               <Join
@@ -129,7 +144,7 @@ function App() {
                 toggleDarkMode={toggleDarkMode}
               />
             ) : (
-              <Navigate to="/" replace />
+              <Navigate to="/app" replace />
             )
           } 
         />
@@ -145,6 +160,9 @@ function App() {
             />
           } 
         />
+        
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );
