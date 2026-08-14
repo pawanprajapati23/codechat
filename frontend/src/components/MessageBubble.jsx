@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Check, CheckCheck, Download, FileText, MoreVertical, Pencil, Trash2, Reply, X } from 'lucide-react';
+import { Check, CheckCheck, Copy, Download, FileText, MoreVertical, Pencil, Trash2, Reply, X } from 'lucide-react';
 import { formatTime, generateUserColor, getInitials } from '../utils/helpers';
 import CodeBlock from './CodeBlock';
 
@@ -12,6 +12,7 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
   const [showOptions, setShowOptions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(text || '');
+  const [copied, setCopied] = useState(false);
 
   // Touch handlers for lightweight swipe-to-reply
   const touchStartX = useRef(0);
@@ -44,6 +45,28 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
       onEditMessage(messageId, editText.trim());
     }
     setIsEditing(false);
+  };
+
+  const handleCopy = () => {
+    const copyText = text || (attachment ? attachment.name : '');
+    if (!copyText) return;
+    navigator.clipboard.writeText(copyText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback for older browsers
+      const el = document.createElement('textarea');
+      el.value = copyText;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+    setShowOptions(false);
   };
 
   const handleDelete = () => {
@@ -222,13 +245,21 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
               </button>
               
               {showOptions && (
-                <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} bottom-full mb-1 z-20 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-28 overflow-hidden`}>
+                <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} bottom-full mb-1 z-20 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-32 overflow-hidden`}>
                   <button 
                     onClick={() => { if(onReplyMessage) onReplyMessage(message); setShowOptions(false); }}
                     className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
                   >
                     <Reply size={14} /> Reply
                   </button>
+                  {(text || attachment?.name) && (
+                    <button 
+                      onClick={handleCopy}
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                    >
+                      <Copy size={14} /> Copy
+                    </button>
+                  )}
                   {isOwn && (
                     <>
                       <button 
@@ -270,6 +301,9 @@ const MessageBubble = ({ message, isOwn, darkMode, onReaction, onEditMessage, on
             
             {/* Timestamp */}
             <span className={`mt-1 flex items-center gap-1 text-[10px] sm:text-xs opacity-70 ${isOwn ? 'justify-end text-gray-700 dark:text-gray-200' : 'justify-start text-gray-500 dark:text-gray-400'}`}>
+              {copied && (
+                <span className="text-[#25d366] font-semibold mr-1">Copied!</span>
+              )}
               <span>{formatTime(timestamp)}</span>
               {isEdited && !isDeleted && <span className="italic opacity-80">(edited)</span>}
               {isOwn && !isDeleted && <MessageStatus status={status} />}
@@ -331,10 +365,30 @@ const MessageStatus = ({ status }) => {
   return <Check className="h-3.5 w-3.5" />;
 };
 
-const AttachmentPreview = ({ attachment, isOwn }) => {
-  const sizeInMb = attachment.size ? `${(attachment.size / (1024 * 1024)).toFixed(2)} MB` : '';
-  const [isFullscreen, setIsFullscreen] = useState(false);
+// Returns a short uppercase extension label e.g. "PDF", "DOCX", "ZIP"
+const getExtLabel = (filename, mimeType) => {
+  const extMatch = filename?.match(/\.([a-zA-Z0-9]+)$/);
+  if (extMatch) return extMatch[1].toUpperCase();
+  if (mimeType) {
+    const parts = mimeType.split('/');
+    return parts[parts.length - 1].toUpperCase().split('+')[0];
+  }
+  return 'FILE';
+};
 
+const fmtBytes = (bytes) => {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const AttachmentPreview = ({ attachment, isOwn }) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const sizeLabel = fmtBytes(attachment.size);
+  const extLabel = getExtLabel(attachment.name, attachment.type);
+
+  // ── Image preview ────────────────────────────────────────────────
   if (attachment.type?.startsWith('image/')) {
     return (
       <>
@@ -349,11 +403,11 @@ const AttachmentPreview = ({ attachment, isOwn }) => {
           />
         </div>
         {isFullscreen && (
-          <div 
+          <div
             className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-2"
             onClick={() => setIsFullscreen(false)}
           >
-            <button 
+            <button
               className="absolute top-4 right-4 text-white p-2 bg-black/50 rounded-full"
               onClick={() => setIsFullscreen(false)}
             >
@@ -370,24 +424,54 @@ const AttachmentPreview = ({ attachment, isOwn }) => {
     );
   }
 
+  // ── Audio preview ────────────────────────────────────────────────
+  if (attachment.type?.startsWith('audio/')) {
+    return (
+      <div className="mb-2">
+        <audio controls src={attachment.dataUrl} className="w-full max-w-xs rounded-lg" />
+        <span className={`block text-xs mt-1 truncate ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
+          {attachment.name}{sizeLabel && ` · ${sizeLabel}`}
+        </span>
+      </div>
+    );
+  }
+
+  // ── Video preview ────────────────────────────────────────────────
+  if (attachment.type?.startsWith('video/')) {
+    return (
+      <div className="mb-2">
+        <video controls src={attachment.dataUrl} className="w-full max-w-xs rounded-xl max-h-48 object-contain bg-black" />
+        <span className={`block text-xs mt-1 truncate ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
+          {attachment.name}{sizeLabel && ` · ${sizeLabel}`}
+        </span>
+      </div>
+    );
+  }
+
+  // ── Generic file (PDF, DOCX, ZIP, any other) ─────────────────────
   return (
     <a
       href={attachment.dataUrl}
       download={attachment.name}
       target="_blank"
       rel="noreferrer"
-      className={`mb-2 flex min-w-0 items-center gap-3 rounded-xl px-3 py-2 ${
-        isOwn ? 'bg-white/15 hover:bg-white/20' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-600'
+      className={`mb-2 flex min-w-0 items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
+        isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-600'
       }`}
     >
-      <FileText className="w-6 h-6 flex-shrink-0" />
+      {/* Extension badge */}
+      <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold ${
+        isOwn ? 'bg-white/20 text-white' : 'bg-[#25d366]/15 text-[#128c7e] dark:text-[#25d366]'
+      }`}>
+        {extLabel}
+      </div>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{attachment.name}</span>
-        <span className={`block text-xs ${isOwn ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
-          PDF {sizeInMb && `- ${sizeInMb}`}
+        <span className={`block text-xs ${isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
+          {sizeLabel || extLabel}
         </span>
       </span>
-      <Download className="w-4 h-4 flex-shrink-0" />
+      <Download className="w-4 h-4 flex-shrink-0 opacity-70" />
     </a>
   );
 };

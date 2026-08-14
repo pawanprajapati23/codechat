@@ -43,6 +43,14 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
+  isGuest: {
+    type: Boolean,
+    default: false
+  },
+  isBanned: {
+    type: Boolean,
+    default: false
+  },
   resetPasswordCode: {
     type: String,
     required: false

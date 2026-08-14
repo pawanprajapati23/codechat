@@ -71,6 +71,8 @@ app.get('/health', (req, res) => {
     activeUsers: userManager.getActiveUserCount()
   });
 });
+// Attach io to app so controllers (e.g. broadcast) can access it
+app.set('io', io);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -105,7 +107,8 @@ const getMessageType = (message, attachment) => {
   if (!attachment) return 'text';
   if (attachment.type?.startsWith('image/')) return 'image';
   if (attachment.type?.startsWith('audio/')) return 'audio';
-  return 'file';
+  if (attachment.type?.startsWith('video/')) return 'video';
+  return 'file'; // covers PDF, DOCX, ZIP, TXT, etc.
 };
 
 const upsertConversation = async ({ roomCode, senderId, text, timestamp }) => {
@@ -317,12 +320,13 @@ io.on('connection', (socket) => {
       };
 
       if (attachment) {
-        const isAllowedType = attachment.type.startsWith('image/') || attachment.type === 'application/pdf';
-        const isAllowedSize = attachment.size > 0 && attachment.size <= 4 * 1024 * 1024;
+        // Allow any file type; enforce a 10 MB size limit
+        const MAX_SIZE = 10 * 1024 * 1024;
+        const isAllowedSize = attachment.size > 0 && attachment.size <= MAX_SIZE;
         const hasDataUrl = attachment.dataUrl.startsWith('data:');
 
-        if (!isAllowedType || !isAllowedSize || !hasDataUrl) {
-          return socket.emit('error', { message: 'Only images and PDFs up to 4 MB can be shared' });
+        if (!isAllowedSize || !hasDataUrl) {
+          return socket.emit('error', { message: 'File must be a valid file up to 10 MB' });
         }
       }
 
