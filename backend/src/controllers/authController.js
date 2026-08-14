@@ -246,6 +246,87 @@ const verifyOtp = async (req, res, next) => {
   }
 };
 
+// ADMIN OTP LOGIN — Step 1: send OTP to admin email
+const sendAdminOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const emailLower = email.toLowerCase().trim();
+    const user = await User.findOne({ email: emailLower });
+
+    // Always respond with success (don't leak if admin exists)
+    // But only send OTP if user is actually admin
+    if (user && user.role === 'admin') {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      otpStore.set(`admin:${emailLower}`, {
+        code,
+        expires: Date.now() + 10 * 60 * 1000, // 10 min
+        verified: false
+      });
+
+      if (resend) {
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'CodeChat <onboarding@resend.dev>',
+          to: emailLower,
+          subject: '🔐 CodeChat Admin Login OTP',
+          html: `
+            <div style="font-family: 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px; background: #0b141a; border-radius: 16px;">
+              <div style="text-align:center; margin-bottom: 24px;">
+                <h1 style="color: #25d366; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">CodeChat</h1>
+                <p style="color: #8696a0; font-size: 14px; margin-top: 6px;">Admin Portal</p>
+              </div>
+              <div style="background: #1f2c33; border-radius: 12px; padding: 32px; border: 1px solid #2a3942;">
+                <h2 style="color: #e9edef; margin-top: 0; font-size: 20px;">Admin Login Request 🛡️</h2>
+                <p style="color: #8696a0; font-size: 15px; line-height: 1.6;">Your one-time login code for the CodeChat admin panel:</p>
+                <div style="text-align: center; margin: 28px 0;">
+                  <span style="display: inline-block; font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #25d366; background: #25d36615; padding: 18px 32px; border-radius: 12px; border: 2px dashed #25d36640;">${code}</span>
+                </div>
+                <p style="color: #8696a0; font-size: 13px; text-align: center;">Valid for <strong style="color:#e9edef;">10 minutes</strong>. Do not share this code.<br>If you did not request this, ignore this email.</p>
+              </div>
+              <p style="color: #2a3942; font-size: 12px; text-align: center; margin-top: 20px;">© ${new Date().getFullYear()} CodeChat Admin</p>
+            </div>
+          `
+        });
+      } else {
+        console.log(`[ADMIN OTP] ${emailLower} => ${code}`);
+      }
+    }
+    // Always 200 — don't reveal if admin exists
+    res.json({ success: true, message: 'If this is a registered admin email, an OTP has been sent.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ADMIN OTP LOGIN — Step 2: verify OTP and return JWT
+const verifyAdminOtp = async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
+
+    const emailLower = email.toLowerCase().trim();
+    const record = otpStore.get(`admin:${emailLower}`);
+
+    if (!record || record.expires < Date.now()) {
+      return res.status(400).json({ error: 'OTP expired or not requested' });
+    }
+    if (record.code !== code) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    const user = await User.findOne({ email: emailLower });
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized as admin' });
+    }
+
+    otpStore.delete(`admin:${emailLower}`);
+    sendAuthResponse(res, user);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   signup,
   login,
@@ -254,5 +335,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   sendOtp,
-  verifyOtp
+  verifyOtp,
+  sendAdminOtp,
+  verifyAdminOtp
 };

@@ -1,11 +1,24 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Check, Copy, KeyRound, Lock, Mail, MessageCircle, Shuffle, User, X, ShieldQuestion, Sparkles, Eye, EyeOff, Shield } from 'lucide-react';
 import { generateRoomCode, copyToClipboard } from '../utils/helpers';
 import { login, signup, forgotPassword, resetPassword, logout, sendOtp, verifyOtp } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://codechat-5oju.onrender.com';
+
+const adminRequest = async (path, body) => {
+  const res = await fetch(`${BACKEND_URL}/api/auth${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+};
+
 const Join = ({ onJoin, authUser }) => {
-  const [mode, setMode] = useState('guest'); // guest, login, signup, forgot
+  const [mode, setMode] = useState('guest'); // guest, login, signup, forgot, admin
   const [username, setUsername] = useState(authUser?.username || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +33,13 @@ const Join = ({ onJoin, authUser }) => {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [signupOtp, setSignupOtp] = useState('');
+
+  // Admin OTP login state
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminOtp, setAdminOtp] = useState('');
+  const [adminOtpSent, setAdminOtpSent] = useState(false);
+  const [adminError, setAdminError] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
 
   useEffect(() => {
     // Focus username input on mount if guest
@@ -180,6 +200,38 @@ const Join = ({ onJoin, authUser }) => {
   const closeAuth = () => {
     setMode('guest');
     setErrors({});
+    setAdminError('');
+    setAdminOtpSent(false);
+    setAdminOtp('');
+  };
+
+  const handleSendAdminOtp = async () => {
+    if (!adminEmail.trim()) { setAdminError('Email is required'); return; }
+    setAdminLoading(true);
+    setAdminError('');
+    try {
+      await adminRequest('/admin-otp', { email: adminEmail.trim() });
+      setAdminOtpSent(true);
+    } catch (e) {
+      setAdminError(e.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleVerifyAdminOtp = async () => {
+    if (!adminOtp.trim()) { setAdminError('OTP is required'); return; }
+    setAdminLoading(true);
+    setAdminError('');
+    try {
+      const data = await adminRequest('/admin-otp/verify', { email: adminEmail.trim(), code: adminOtp.trim() });
+      localStorage.setItem('authToken', data.token);
+      window.location.reload();
+    } catch (e) {
+      setAdminError(e.message);
+    } finally {
+      setAdminLoading(false);
+    }
   };
 
   return (
@@ -234,20 +286,28 @@ const Join = ({ onJoin, authUser }) => {
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter a Room PIN to connect instantly</p>
             </div>
           ) : (
-            <div className="flex gap-3 justify-center mb-8">
+            <div className="flex gap-2 justify-center mb-8">
               <button 
                 type="button"
                 onClick={() => openAuth('login')}
-                className="flex-1 py-2.5 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-all border border-gray-200 dark:border-gray-700 font-semibold shadow-sm hover:shadow-md"
+                className="flex-1 py-2.5 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-all border border-gray-200 dark:border-gray-700 font-semibold shadow-sm hover:shadow-md text-sm"
               >
                 Login
               </button>
               <button 
                 type="button"
                 onClick={() => openAuth('signup')}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white transition-all font-semibold shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/40"
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white transition-all font-semibold shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/40 text-sm"
               >
                 Sign Up
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAdminEmail(''); setAdminOtp(''); setAdminOtpSent(false); setAdminError(''); setMode('admin'); }}
+                title="Admin Login"
+                className="p-2.5 rounded-xl bg-[#0b141a] hover:bg-[#1f2c33] text-[#25d366] border border-[#2a3942] transition-all shadow-sm"
+              >
+                <Shield size={18} />
               </button>
             </div>
           )}
@@ -344,6 +404,106 @@ const Join = ({ onJoin, authUser }) => {
 
       {/* Auth Modal using Framer Motion */}
       <AnimatePresence>
+        {/* ── Admin OTP Modal ── */}
+        {mode === 'admin' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-[#0b141a] border border-[#2a3942] rounded-[2rem] w-full max-w-sm p-8 shadow-2xl relative"
+            >
+              <button onClick={closeAuth}
+                className="absolute top-5 right-5 p-2 rounded-full hover:bg-[#1f2c33] text-[#8696a0] hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+
+              {/* Header */}
+              <div className="flex flex-col items-center mb-8">
+                <div className="w-14 h-14 rounded-2xl bg-[#25d366]/10 border border-[#25d366]/30 flex items-center justify-center mb-4">
+                  <Shield size={28} className="text-[#25d366]" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">Admin Login</h2>
+                <p className="text-[#8696a0] text-sm mt-1 text-center">OTP will be sent to your registered admin email</p>
+              </div>
+
+              {/* Error */}
+              {adminError && (
+                <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2">
+                  <X size={14} className="flex-shrink-0" /> {adminError}
+                </div>
+              )}
+
+              {!adminOtpSent ? (
+                /* Step 1: Enter email */
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-[#8696a0] uppercase tracking-wide block mb-1.5">Admin Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8696a0] h-5 w-5" />
+                      <input
+                        type="email"
+                        value={adminEmail}
+                        onChange={e => { setAdminEmail(e.target.value); setAdminError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handleSendAdminOtp()}
+                        placeholder="admin@example.com"
+                        className="w-full bg-[#1f2c33] border border-[#2a3942] rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-[#8696a0] focus:outline-none focus:border-[#25d366] focus:ring-1 focus:ring-[#25d366]/30 transition-all"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSendAdminOtp}
+                    disabled={adminLoading || !adminEmail.trim()}
+                    className="w-full py-3.5 rounded-xl bg-[#25d366] hover:bg-[#20bd5a] disabled:opacity-50 disabled:cursor-not-allowed text-[#0b141a] font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#25d366]/20"
+                  >
+                    {adminLoading ? 'Sending OTP...' : <><Mail size={16} /> Send OTP to Email</>}
+                  </button>
+                </div>
+              ) : (
+                /* Step 2: Enter OTP */
+                <div className="space-y-4">
+                  <div className="p-3 rounded-xl bg-[#25d366]/10 border border-[#25d366]/20 text-[#25d366] text-sm text-center">
+                    OTP sent to <strong>{adminEmail}</strong>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#8696a0] uppercase tracking-wide block mb-1.5">Enter OTP</label>
+                    <input
+                      type="text"
+                      value={adminOtp}
+                      onChange={e => { setAdminOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setAdminError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handleVerifyAdminOtp()}
+                      placeholder="6-digit code"
+                      maxLength={6}
+                      className="w-full bg-[#1f2c33] border border-[#2a3942] rounded-xl py-3.5 px-4 text-white placeholder-[#8696a0] focus:outline-none focus:border-[#25d366] focus:ring-1 focus:ring-[#25d366]/30 transition-all text-center text-2xl font-mono tracking-[0.5em]"
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    onClick={handleVerifyAdminOtp}
+                    disabled={adminLoading || adminOtp.length < 6}
+                    className="w-full py-3.5 rounded-xl bg-[#25d366] hover:bg-[#20bd5a] disabled:opacity-50 disabled:cursor-not-allowed text-[#0b141a] font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#25d366]/20"
+                  >
+                    {adminLoading ? 'Verifying...' : <><Shield size={16} /> Login as Admin</>}
+                  </button>
+                  <button
+                    onClick={() => { setAdminOtpSent(false); setAdminOtp(''); setAdminError(''); }}
+                    className="w-full text-sm text-[#8696a0] hover:text-white transition-colors py-1"
+                  >
+                    ← Change email
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+
         {(mode === 'login' || mode === 'signup' || mode === 'forgot') && (
           <motion.div
             initial={{ opacity: 0 }}
